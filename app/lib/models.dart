@@ -4,7 +4,7 @@ import 'dart:math';
 class DeckButton {
   String id;
   String label;
-  String type; // hotkey | open | obs | game | page
+  String type; // hotkey | open | obs | game | page | widget
   String? color; // #rrggbb
   String? icon; // file name served by the agent at /icon/<name>
   String? game; // game: id from the PC's game scan
@@ -13,8 +13,11 @@ class DeckButton {
   String? target; // open
   String? action; // obs: scene | toggleMute | toggleStream | toggleRecord
   String? name; // obs scene/input name
+  String? widget; // widget: clock | cpu | ram | gpu | media | volume | timer | counter | weather
+  int? minutes; // timer widget
+  String? city; // weather widget
 
-  DeckButton({required this.id, required this.label, required this.type, this.color, this.icon, this.game, this.page, this.keys, this.target, this.action, this.name});
+  DeckButton({required this.id, required this.label, required this.type, this.color, this.icon, this.game, this.page, this.keys, this.target, this.action, this.name, this.widget, this.minutes, this.city});
 
   factory DeckButton.blank() => DeckButton(id: 'b${DateTime.now().millisecondsSinceEpoch}${Random().nextInt(1000)}', label: 'Novo', type: 'hotkey', keys: 'ctrl+c');
 
@@ -30,6 +33,9 @@ class DeckButton {
         target: j['target'],
         action: j['action'],
         name: j['name'],
+        widget: j['widget'],
+        minutes: j['minutes'],
+        city: j['city'],
       );
 
   Map<String, dynamic> toJson() => {
@@ -44,6 +50,9 @@ class DeckButton {
         if (type == 'open') 'target': target,
         if (type == 'obs') 'action': action,
         if (type == 'obs' && (action == 'scene' || action == 'toggleMute')) 'name': name,
+        if (type == 'widget') 'widget': widget,
+        if (type == 'widget' && widget == 'timer') 'minutes': minutes ?? 5,
+        if (type == 'widget' && widget == 'weather') 'city': city,
       };
 
   DeckButton copy() => DeckButton.fromJson(toJson());
@@ -83,7 +92,7 @@ class DeckConfig {
   List<String> hiddenGames;
   final List<GameInfo> games;
   final bool scanning;
-  final bool gamesTab, obsPage, setupDone; // changed only through Configurações, never by a save
+  final bool gamesTab, obsPage, widgetsPage, setupDone; // changed only through Configurações, never by a save
   final PresetInfo? creatorPreset;
   DeckConfig({
     required this.columns,
@@ -93,6 +102,7 @@ class DeckConfig {
     this.scanning = false,
     this.gamesTab = false,
     this.obsPage = false,
+    this.widgetsPage = false,
     this.setupDone = true,
     this.creatorPreset,
   });
@@ -105,6 +115,7 @@ class DeckConfig {
         scanning: j['scanning'] == true,
         gamesTab: j['features']?['games'] == true,
         obsPage: j['features']?['obs'] == true,
+        widgetsPage: j['features']?['widgets'] == true,
         setupDone: j['setupDone'] != false,
         creatorPreset: j['creatorPreset'] == null ? null : PresetInfo.fromJson(j['creatorPreset']),
       );
@@ -124,6 +135,7 @@ class DeckConfig {
         scanning: scanning,
         gamesTab: gamesTab,
         obsPage: obsPage,
+        widgetsPage: widgetsPage,
         setupDone: setupDone,
         creatorPreset: creatorPreset,
       );
@@ -148,3 +160,27 @@ class Pairing {
   @override
   String toString() => 'http://$host:$port/?t=$token';
 }
+
+/// One live key reading sent by the PC every second.
+class LiveValue {
+  final String text;
+  final String? sub;
+  final double? progress;
+  final bool alert;
+  LiveValue(this.text, this.sub, this.progress, this.alert);
+  factory LiveValue.fromJson(Map<String, dynamic> j) =>
+      LiveValue(j['text'] ?? '…', j['sub'], (j['progress'] as num?)?.toDouble(), j['alert'] == true);
+}
+
+/// Widget kinds, same as agent/widgets.js, with what a tap / long press does.
+const widgetKinds = {
+  'clock': ('Relógio', 'Mostra a hora e a data do PC.'),
+  'cpu': ('Uso da CPU', 'Toque abre o Gerenciador de Tarefas.'),
+  'ram': ('Uso da memória RAM', 'Toque abre o Gerenciador de Tarefas.'),
+  'gpu': ('Uso da placa de vídeo', 'Uso e temperatura (NVIDIA). Toque abre o Gerenciador de Tarefas.'),
+  'media': ('Música tocando', 'Toque: play/pause. Segure: próxima.'),
+  'volume': ('Volume do PC', 'Toque: mudo liga/desliga.'),
+  'timer': ('Cronômetro', 'Toque: inicia/pausa. Segure: zera.'),
+  'counter': ('Contador', 'Toque: +1. Segure: zera.'),
+  'weather': ('Clima', 'Temperatura agora na cidade escolhida.'),
+};

@@ -33,6 +33,12 @@ Write-Host '3/4 Atalhos de instalar e desinstalar...'
 Write-Host '4/4 Compactando...'
 $out = Join-Path $dist 'StreamDeck-PC.zip'
 Remove-Item -Force $out -ErrorAction SilentlyContinue
-# Compress-Archive in PowerShell 5.1 writes backslash paths that break non-Explorer unzippers.
-[IO.Compression.ZipFile]::CreateFromDirectory($pkg, $out, [IO.Compression.CompressionLevel]::Optimal, $false)
+# Windows PowerShell's zip helpers write "\" in entry paths, which breaks unzippers other than Explorer; entries are added by hand with "/".
+$zip = [IO.Compression.ZipFile]::Open($out, [IO.Compression.ZipArchiveMode]::Create)
+try {
+  Get-ChildItem $pkg -Recurse -File | ForEach-Object {
+    $name = $_.FullName.Substring($pkg.Length + 1).Replace('\', '/')
+    [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $name, [IO.Compression.CompressionLevel]::Optimal)
+  }
+} finally { $zip.Dispose() }
 Write-Host "Pronto: $out ($([math]::Round((Get-Item $out).Length / 1MB, 1)) MB)"

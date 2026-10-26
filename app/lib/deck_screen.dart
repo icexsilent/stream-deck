@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'button_editor.dart';
 import 'connection.dart';
 import 'deck_tile.dart';
+import 'home_widget_sync.dart';
 import 'models.dart';
 import 'settings_screen.dart';
 import 'theme.dart';
@@ -27,6 +28,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
   DeckConfig? draft; // non-null while editing; holds only the user's pages
   bool saving = false;
   bool _welcomeShown = false;
+  DeckConfig? _synced; // last config written to the home screen widget
 
   @override
   void initState() {
@@ -43,6 +45,10 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
   // A brand-new install asks once which extras to turn on.
   void _maybeWelcome() {
     final c = conn.config;
+    if (c != null && !identical(c, _synced)) {
+      _synced = c;
+      syncHomeWidget(c, conn.pairing);
+    }
     if (c == null || c.setupDone || _welcomeShown) return;
     _welcomeShown = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -335,12 +341,21 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
 
   Widget _tile(DeckPage p, int i, DeckConfig cfg, bool editing, bool online) {
     final b = p.buttons[i];
-    final tile = DeckTile(
-      button: b,
-      iconUrl: conn.iconUrl,
-      flash: _flash[b.id],
-      onTap: editing ? () => _editButton(p, i) : (online || b.type == 'page' ? () => _press(b, cfg) : null),
-    );
+    Widget tileWith(LiveValue? live) => DeckTile(
+          button: b,
+          iconUrl: conn.iconUrl,
+          flash: _flash[b.id],
+          live: live,
+          onTap: editing ? () => _editButton(p, i) : (online || b.type == 'page' ? () => _press(b, cfg) : null),
+          // Long press zeroes counters and timers, and skips to the next song.
+          onLongPress: !editing && online && b.type == 'widget'
+              ? () {
+                  HapticFeedback.mediumImpact();
+                  conn.press(b.id, long: true);
+                }
+              : null,
+        );
+    final tile = b.type == 'widget' ? ValueListenableBuilder(valueListenable: conn.live, builder: (_, live, _) => tileWith(live[b.id])) : tileWith(null);
     if (!editing) return tile;
     Widget arrow(IconData icon, String tip, int to) => Material(
           color: Colors.black54,

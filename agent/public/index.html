@@ -21,12 +21,12 @@
 <main id="grid"></main>
 <p id="msg" hidden></p>
 <script type="module">
-import { keyTile } from '/keytile.js';
+import { keyTile, updateLive } from '/keytile.js';
 
 const token = new URLSearchParams(location.search).get('t') || '';
 const $ = (id) => document.getElementById(id);
 const iconUrl = (f) => `/icon/${encodeURIComponent(f)}?t=${encodeURIComponent(token)}`;
-let ws, cfg, pageIdx = 0;
+let ws, cfg, pageIdx = 0, live = {};
 
 function toast(msg) {
   document.querySelector('.toast')?.remove();
@@ -51,8 +51,16 @@ function render() {
   const p = cfg.pages[pageIdx];
   $('grid').style.gridTemplateColumns = `repeat(${cfg.columns}, 1fr)`;
   $('grid').replaceChildren(...p.buttons.map((b) => {
-    const el = keyTile(b, iconUrl);
+    const el = keyTile(b, iconUrl, live[b.id]);
+    // Widgets use long press too (zero the counter, reset the timer, next song).
+    let timer, longFired = false;
+    if (b.type === 'widget') {
+      el.onpointerdown = () => { longFired = false; timer = setTimeout(() => { longFired = true; navigator.vibrate?.(60); ws.send(JSON.stringify({ type: 'press', id: b.id, long: true })); }, 550); };
+      el.onpointerup = el.onpointerleave = () => clearTimeout(timer);
+      el.oncontextmenu = (e) => e.preventDefault();
+    }
     el.onclick = () => {
+      if (longFired) return;
       navigator.vibrate?.(20);
       if (b.type === 'page') {
         const to = cfg.pages.findIndex((x) => x.name === b.page);
@@ -79,6 +87,13 @@ function connect() {
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'config') { cfg = msg.config; render(); }
+    else if (msg.type === 'live') {
+      live = msg.values;
+      for (const [id, v] of Object.entries(live)) {
+        const el = $('grid').querySelector(`[data-id="${CSS.escape(id)}"]`);
+        if (el) updateLive(el, v);
+      }
+    }
     else if (msg.type === 'ok') flash(msg.id, 'hit');
     else if (msg.type === 'error') { if (msg.id) flash(msg.id, 'err'); toast(msg.error); }
   };

@@ -15,6 +15,7 @@ const _types = {
   'game': 'Abrir jogo',
   'obs': 'OBS',
   'page': 'Ir para outra página',
+  'widget': 'Widget ao vivo',
 };
 
 class ButtonEditor extends StatefulWidget {
@@ -34,6 +35,8 @@ class _ButtonEditorState extends State<ButtonEditor> {
   late final keys = TextEditingController(text: b.keys ?? '');
   late final target = TextEditingController(text: b.target ?? '');
   late final name = TextEditingController(text: b.name ?? '');
+  late final minutes = TextEditingController(text: '${b.minutes ?? 5}');
+  late final city = TextEditingController(text: b.city ?? '');
 
   void _save() {
     if (label.text.trim().isEmpty) {
@@ -44,7 +47,9 @@ class _ButtonEditorState extends State<ButtonEditor> {
       ..label = label.text.trim()
       ..keys = keys.text.trim()
       ..target = target.text.trim()
-      ..name = name.text.trim();
+      ..name = name.text.trim()
+      ..minutes = int.tryParse(minutes.text) ?? 5
+      ..city = city.text.trim();
     if (b.type == 'obs') b.action ??= 'toggleStream';
     Navigator.pop(context, EditResult(b));
   }
@@ -121,7 +126,10 @@ class _ButtonEditorState extends State<ButtonEditor> {
             initialValue: b.type,
             decoration: const InputDecoration(labelText: 'Ação'),
             items: [for (final e in _types.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
-            onChanged: (v) => setState(() => b.type = v!),
+            onChanged: (v) => setState(() {
+              b.type = v!;
+              if (b.type == 'widget') b.widget ??= 'clock';
+            }),
           ),
           gap,
           if (b.type == 'hotkey')
@@ -157,6 +165,26 @@ class _ButtonEditorState extends State<ButtonEditor> {
                     items: [for (final g in widget.games) DropdownMenuItem(value: g.id, child: Text('${g.label} (${g.source})', overflow: TextOverflow.ellipsis))],
                     onChanged: _pickGame,
                   ),
+          if (b.type == 'widget') ...[
+            DropdownButtonFormField<String>(
+              initialValue: widgetKinds.containsKey(b.widget) ? b.widget : 'clock',
+              decoration: InputDecoration(labelText: 'Widget', helperText: widgetKinds[b.widget ?? 'clock']!.$2, helperMaxLines: 2),
+              items: [for (final e in widgetKinds.entries) DropdownMenuItem(value: e.key, child: Text(e.value.$1))],
+              onChanged: (v) => setState(() {
+                final wasDefault = label.text == 'Novo' || widgetKinds.values.any((k) => k.$1 == label.text);
+                b.widget = v;
+                if (wasDefault) label.text = widgetKinds[v]!.$1;
+              }),
+            ),
+            if (b.widget == 'timer') ...[
+              const SizedBox(height: 16),
+              TextField(controller: minutes, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutos')),
+            ],
+            if (b.widget == 'weather') ...[
+              const SizedBox(height: 16),
+              TextField(controller: city, decoration: const InputDecoration(labelText: 'Cidade', hintText: 'São Paulo')),
+            ],
+          ],
           if (b.type == 'page')
             DropdownButtonFormField<String>(
               initialValue: widget.pageNames.contains(b.page) ? b.page : null,

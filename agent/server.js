@@ -10,6 +10,7 @@ const config = require('./config');
 const { run } = require('./actions');
 const { scanAll, ICONS } = require('./games');
 const { pickApp } = require('./apps');
+const widgets = require('./widgets');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PRESET_DIR = path.join(__dirname, 'presets');
@@ -152,6 +153,7 @@ wss.on('connection', (ws, req) => {
   if (!validToken(new URL(req.url, 'http://x').searchParams.get('t'))) return ws.close(4001, 'token inválido');
   ws.authed = true;
   send(ws, { type: 'config', config: publicConfig() });
+  send(ws, { type: 'live', values: live });
   ws.on('message', async (data) => {
     let msg;
     try { msg = JSON.parse(data); } catch { return; }
@@ -160,7 +162,7 @@ wss.on('connection', (ws, req) => {
     if (msg.type === 'setFeatures' || msg.type === 'applyPreset') {
       try {
         if (msg.type === 'setFeatures') {
-          cfg = config.save(config.applyFeatures(cfg, { games: msg.features?.games ?? cfg.features.games, obs: msg.features?.obs ?? cfg.features.obs }));
+          cfg = config.save(config.applyFeatures(cfg, msg.features ?? {}));
         } else {
           const preset = creatorPreset();
           if (!preset) throw new Error('esta versão não tem Preset do Criador');
@@ -190,13 +192,25 @@ wss.on('connection', (ws, req) => {
     const b = msg.type === 'press' && [...cfg.pages, ...(cfg.features.games ? [gamesPage()] : [])].flatMap((p) => p.buttons).find((x) => x.id === msg.id);
     if (!b) return send(ws, { type: 'error', id: msg.id, error: 'botão não existe' });
     try {
-      await run(b, cfg, games);
+      await run(b, cfg, games, msg.long === true);
+      if (b.type === 'widget') pushLive(); // show the new timer/counter/mute state right away
       send(ws, { type: 'ok', id: b.id });
     } catch (e) {
       send(ws, { type: 'error', id: b.id, error: e.message });
     }
   });
 });
+
+// Live keys: recompute every second and send only when something changed.
+let live = {};
+function pushLive() {
+  const buttons = cfg.pages.flatMap((p) => p.buttons).filter((b) => b.type === 'widget');
+  const next = buttons.length ? widgets.collect(buttons) : {};
+  if (JSON.stringify(next) === JSON.stringify(live)) return;
+  live = next;
+  broadcast({ type: 'live', values: live });
+}
+setInterval(pushLive, 1000);
 
 server.listen(PORT, async () => {
   const [ip] = lanIps();

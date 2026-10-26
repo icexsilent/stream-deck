@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="@drawable/widget_bg">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="4dp"
+        android:paddingBottom="6dp"
+        android:text="Stream Deck"
+        android:textColor="#9A9EA6"
+        android:textSize="12sp"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="Abra o app Stream Deck e pareie com o PC"
+        android:textColor="#E8E9EB"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/row0"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+        <TextView android:id="@+id/slot0" style="@style/DeckWidgetKey" />
+        <TextView android:id="@+id/slot1" style="@style/DeckWidgetKey" />
+        <TextView android:id="@+id/slot2" style="@style/DeckWidgetKey" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/row1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+        <TextView android:id="@+id/slot3" style="@style/DeckWidgetKey" />
+        <TextView android:id="@+id/slot4" style="@style/DeckWidgetKey" />
+        <TextView android:id="@+id/slot5" style="@style/DeckWidgetKey" />
+    </LinearLayout>
+</LinearLayout>

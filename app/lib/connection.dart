@@ -21,6 +21,8 @@ class DeckConnection extends ChangeNotifier {
   Pairing pairing;
   LinkState state = LinkState.connecting;
   DeckConfig? config;
+  // Separate from config so the once-a-second updates rebuild only the live keys.
+  final live = ValueNotifier<Map<String, LiveValue>>({});
   final results = StreamController<PressResult>.broadcast();
 
   WebSocketChannel? _ch;
@@ -94,6 +96,8 @@ class DeckConnection extends ChangeNotifier {
         config = DeckConfig.fromJson(msg['config']);
         _failures = 0;
         _set(LinkState.connected);
+      case 'live':
+        live.value = {for (final e in (msg['values'] as Map<String, dynamic>).entries) e.key: LiveValue.fromJson(e.value)};
       case 'pong':
         _pongWait?.cancel();
         _pongWait = null;
@@ -139,13 +143,13 @@ class DeckConnection extends ChangeNotifier {
 
   void _send(Map<String, dynamic> msg) => _ch?.sink.add(jsonEncode(msg));
 
-  void press(String id) => _send({'type': 'press', 'id': id});
+  void press(String id, {bool long = false}) => _send({'type': 'press', 'id': id, if (long) 'long': true});
 
   void rescan() => _send({'type': 'rescan'});
 
   /// Configurações: turns the Jogos tab / OBS page on or off. Returns null on success or the agent's error.
-  Future<String?> setFeatures({required bool games, required bool obs}) =>
-      _request({'type': 'setFeatures', 'features': {'games': games, 'obs': obs}});
+  Future<String?> setFeatures({required bool games, required bool obs, required bool widgets}) =>
+      _request({'type': 'setFeatures', 'features': {'games': games, 'obs': obs, 'widgets': widgets}});
 
   /// Replaces all of the user's buttons with the creator's preset shipped in this build.
   Future<String?> applyCreatorPreset() => _request({'type': 'applyPreset', 'name': 'creator'});
@@ -177,6 +181,7 @@ class DeckConnection extends ChangeNotifier {
     _pongWait?.cancel();
     _ch?.sink.close();
     results.close();
+    live.dispose();
     super.dispose();
   }
 }

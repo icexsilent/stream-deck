@@ -71,4 +71,12 @@ void main() {
     expect([c.gamesTab, c.obsPage, c.setupDone, c.creatorPreset!.buttons], [true, true, false, 12]);
     expect((c.copy().toJson()['pages'] as List).first['template'], 'obs');
   });
+
+  test('botão widget leva só os campos do tipo e valor ao vivo é lido', () {
+    final b = DeckButton(id: 't', label: 'Timer', type: 'widget', widget: 'timer', minutes: 10, city: 'sobra');
+    expect(b.toJson(), {'id': 't', 'label': 'Timer', 'type': 'widget', 'widget': 'timer', 'minutes': 10});
+    final v = LiveValue.fromJson({'text': '42%', 'sub': 'CPU', 'progress': 0.42, 'alert': false});
+    expect([v.text, v.sub, v.progress, v.alert], ['42%', 'CPU', 0.42, false]);
+    expect(DeckConfig.fromJson({'pages': [{'name': 'P', 'buttons': []}], 'features': {'widgets': true}}).widgetsPage, true);
+  });
 }

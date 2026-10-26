@@ -10,7 +10,9 @@ class DeckTile extends StatefulWidget {
   final bool? flash; // true = ok, false = error, null = idle
   final bool selected;
   final VoidCallback? onTap;
-  const DeckTile({super.key, required this.button, required this.iconUrl, this.flash, this.selected = false, this.onTap});
+  final VoidCallback? onLongPress;
+  final LiveValue? live; // widget keys only
+  const DeckTile({super.key, required this.button, required this.iconUrl, this.flash, this.selected = false, this.onTap, this.onLongPress, this.live});
 
   @override
   State<DeckTile> createState() => _DeckTileState();
@@ -18,6 +20,42 @@ class DeckTile extends StatefulWidget {
 
 class _DeckTileState extends State<DeckTile> {
   bool _down = false;
+
+  // Live key: name on top, big value in the middle, detail below, bar along the bottom edge.
+  Widget _widgetFace(DeckButton b) {
+    final v = widget.live;
+    final alert = v?.alert ?? false;
+    return Stack(fit: StackFit.expand, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(b.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Tokens.muted)),
+          Expanded(
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: Text(v?.text ?? '…',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.1, color: alert ? Tokens.danger : Colors.white, fontFeatures: const [FontFeature.tabularFigures()])),
+                ),
+              ),
+            ),
+          ),
+          if (v?.sub != null)
+            Text(v!.sub!, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Tokens.muted)),
+        ]),
+      ),
+      if (v?.progress != null)
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: LinearProgressIndicator(value: v!.progress!.clamp(0, 1), minHeight: 4, backgroundColor: Colors.white10, color: alert ? Tokens.danger : Tokens.accent),
+        ),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +78,7 @@ class _DeckTileState extends State<DeckTile> {
         onTapUp: (_) => setState(() => _down = false),
         onTapCancel: () => setState(() => _down = false),
         onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
         child: AnimatedScale(
           scale: _down ? 0.93 : 1,
           duration: const Duration(milliseconds: 80),
@@ -56,7 +95,7 @@ class _DeckTileState extends State<DeckTile> {
                       : null,
             ),
             foregroundDecoration: widget.flash == true || _down ? BoxDecoration(color: Colors.white.withValues(alpha: 0.18)) : null,
-            child: Stack(fit: StackFit.expand, children: [
+            child: b.type == 'widget' ? _widgetFace(b) : Stack(fit: StackFit.expand, children: [
               if (b.icon != null)
                 Padding(
                   padding: smallIcon ? const EdgeInsets.fromLTRB(20, 12, 20, 36) : EdgeInsets.zero,

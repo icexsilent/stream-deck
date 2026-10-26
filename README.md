@@ -65,6 +65,24 @@ Abra o atalho **Stream Deck** na Área de Trabalho ou no Menu Iniciar.
 
 Quando ligada, mostra sozinha os jogos instalados no PC (Steam, Epic, Riot e Xbox), com capa. Tocar abre o jogo. No editor do PC dá para esconder os jogos que você não quer.
 
+### Widgets ao vivo
+
+Teclas que mostram informação e atualizam sozinhas a cada segundo. Ligue a **📊 Página Widgets** em Configurações, ou crie uma tecla com a ação **Widget ao vivo** no editor.
+
+| Widget | Mostra | Tocar | Segurar |
+|---|---|---|---|
+| Relógio | hora e data do PC | — | — |
+| CPU / RAM / GPU | uso em %, RAM em GB, temperatura da GPU (NVIDIA) | abre o Gerenciador de Tarefas | — |
+| Música | o que está tocando (Spotify, YouTube…) | play/pause | próxima |
+| Volume | volume do PC | mudo liga/desliga | — |
+| Cronômetro | contagem regressiva (você escolhe os minutos) | inicia/pausa | zera |
+| Contador | um número | +1 | zera |
+| Clima | temperatura agora na sua cidade | — | — |
+
+### Widget na tela inicial (Android)
+
+Até 6 botões do Stream Deck direto na tela inicial do celular, sem abrir o app. Em **⋮ → Configurações → Widget da tela inicial**, escolha a página e toque em **Adicionar à tela inicial**.
+
 ### Preset do Criador
 
 Os botões e páginas que o criador do app usa, atualizados a cada versão. Em **Configurações → Usar o Preset do Criador**. Atenção: isso **substitui** todos os seus botões.

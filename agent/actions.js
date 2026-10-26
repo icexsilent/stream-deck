@@ -1,6 +1,7 @@
 const { spawn } = require('node:child_process');
 const { OBSWebSocket } = require('obs-websocket-js');
 const { toVks } = require('./keys');
+const widgets = require('./widgets');
 
 // One long-lived PowerShell process presses keys via user32, so a press costs ~1 ms instead of a new process.
 const PS = `
@@ -49,7 +50,14 @@ function launchGame(id, games) {
   spawn(g.launch.exe, g.launch.args ?? [], { detached: true, stdio: 'ignore' }).unref();
 }
 
-async function run(b, cfg, games = []) {
+async function run(b, cfg, games = [], long = false) {
+  if (b.type === 'widget') {
+    const r = widgets.press(b, long);
+    if (typeof r === 'string') return pressKeys(toVks(r)); // media keys for the music widget
+    if (r?.open) return open(r.open);
+    return;
+  }
+  if (long) return; // long press only means something to widgets
   if (b.type === 'hotkey') return pressKeys(toVks(b.keys));
   if (b.type === 'open') return open(b.target);
   if (b.type === 'game') return launchGame(b.game, games);

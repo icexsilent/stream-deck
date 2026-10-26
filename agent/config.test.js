@@ -52,9 +52,9 @@ test('ícones, jogos, páginas e jogos ocultos', () => {
 test('features: padrão novo, migração e liga/desliga da página OBS', () => {
   const { applyFeatures } = require('./config');
   const fresh = validate(require('./buttons.example.json'));
-  assert.deepStrictEqual([fresh.features, fresh.setupDone, fresh.pages.map((p) => p.name)], [{ games: false, obs: false }, false, ['Principal']]);
+  assert.deepStrictEqual([fresh.features, fresh.setupDone, fresh.pages.map((p) => p.name)], [{ games: false, obs: false, widgets: false }, false, ['Principal']]);
   const legacy = validate({ pages: [{ name: 'P', buttons: [] }, { name: 'OBS', buttons: [{ id: 'o', label: 'O', type: 'obs', action: 'toggleStream' }] }] });
-  assert.deepStrictEqual([legacy.features, legacy.setupDone, legacy.pages[1].template], [{ games: true, obs: true }, true, 'obs']);
+  assert.deepStrictEqual([legacy.features, legacy.setupDone, legacy.pages[1].template], [{ games: true, obs: true, widgets: false }, true, 'obs']);
   const on = validate(applyFeatures(fresh, { obs: true }));
   assert.deepStrictEqual([on.pages.map((p) => p.name), on.setupDone], [['Principal', 'OBS'], true]);
   assert.strictEqual(validate(applyFeatures(on, { obs: true })).pages.length, 2); // não duplica

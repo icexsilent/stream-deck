@@ -1,23 +1,34 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { toVks } = require('./keys');
+const { KINDS: WIDGETS } = require('./widgets');
 
 const FILE = path.join(__dirname, 'buttons.json');
 const COLOR = /^#[0-9a-f]{6}$/i;
 const OBS_ACTIONS = ['scene', 'toggleMute', 'toggleStream', 'toggleRecord'];
 const ICON = /^[\w-]{1,80}\.(png|jpe?g|webp|gif)$/i;
 
-// Added or removed as a whole by the OBS switch in Configurações; `template` marks it so the switch finds it again.
-const OBS_TEMPLATE = {
-  name: 'OBS',
-  template: 'obs',
-  buttons: [
+// Pages added or removed as a whole by the switches in Configurações; `template` marks them so the switch finds them again.
+const TEMPLATES = {
+  obs: { name: 'OBS', buttons: [
     { id: 'obs-live', label: '🔴 Live on/off', type: 'obs', action: 'toggleStream', color: '#dc2626' },
     { id: 'obs-rec', label: '⏺️ Gravar on/off', type: 'obs', action: 'toggleRecord' },
     { id: 'obs-mic', label: '🎙️ Mic OBS', type: 'obs', action: 'toggleMute', name: 'Mic/Aux' },
     { id: 'obs-cena1', label: '🎬 Cena 1', type: 'obs', action: 'scene', name: 'Cena' },
-  ],
+  ] },
+  widgets: { name: 'Widgets', buttons: [
+    { id: 'w-clock', label: 'Relógio', type: 'widget', widget: 'clock' },
+    { id: 'w-cpu', label: 'CPU', type: 'widget', widget: 'cpu' },
+    { id: 'w-ram', label: 'RAM', type: 'widget', widget: 'ram' },
+    { id: 'w-gpu', label: 'GPU', type: 'widget', widget: 'gpu' },
+    { id: 'w-media', label: 'Música', type: 'widget', widget: 'media' },
+    { id: 'w-volume', label: 'Volume', type: 'widget', widget: 'volume' },
+    { id: 'w-timer', label: 'Timer 5 min', type: 'widget', widget: 'timer', minutes: 5 },
+    { id: 'w-counter', label: 'Contador', type: 'widget', widget: 'counter' },
+    { id: 'w-weather', label: 'Clima', type: 'widget', widget: 'weather', city: 'São Paulo' },
+  ] },
 };
+const FEATURES = ['games', 'obs', 'widgets'];
 
 // Throws a readable error on anything the phone or a hand edit could get wrong; the file is only written after this passes.
 function validate(cfg) {
@@ -33,7 +44,7 @@ function validate(cfg) {
     if (!Array.isArray(p.buttons)) throw new Error(`página "${p.name}" sem lista de botões`);
     return {
       name: p.name.trim(),
-      ...(p.template === 'obs' ? { template: 'obs' } : {}),
+      ...(TEMPLATES[p.template] ? { template: p.template } : {}),
       buttons: p.buttons.map((b) => {
         const where = `botão "${b.label ?? b.id}" na página "${p.name}"`;
         if (typeof b.id !== 'string' || !/^[\w-]{1,40}$/.test(b.id)) throw new Error(`${where}: id inválido`);
@@ -66,7 +77,19 @@ function validate(cfg) {
           const v = b[b.type];
           if (typeof v !== 'string' || !v.trim()) throw new Error(`${where}: escolha ${b.type === 'game' ? 'o jogo' : 'a página'}`);
           out[b.type] = v;
-        } else throw new Error(`${where}: tipo deve ser hotkey, open, obs, game ou page`);
+        } else if (b.type === 'widget') {
+          if (!WIDGETS[b.widget]) throw new Error(`${where}: widget deve ser ${Object.keys(WIDGETS).join(', ')}`);
+          out.widget = b.widget;
+          if (b.widget === 'timer') {
+            const m = b.minutes ?? 5;
+            if (!Number.isInteger(m) || m < 1 || m > 600) throw new Error(`${where}: minutos do cronômetro de 1 a 600`);
+            out.minutes = m;
+          }
+          if (b.widget === 'weather') {
+            if (typeof b.city !== 'string' || !b.city.trim() || b.city.length > 60) throw new Error(`${where}: escreva a cidade do clima`);
+            out.city = b.city.trim();
+          }
+        } else throw new Error(`${where}: tipo deve ser hotkey, open, obs, game, page ou widget`);
         return out;
       }),
     };
@@ -76,11 +99,11 @@ function validate(cfg) {
     // Configs from before Configurações existed: keep what that user already had, and skip the first-run questions.
     const legacyObs = pages.find((p) => p.name === 'OBS' && p.buttons.some((b) => b.type === 'obs'));
     if (legacyObs) legacyObs.template = 'obs';
-    out.features = { games: true, obs: Boolean(legacyObs) };
+    out.features = { games: true, obs: Boolean(legacyObs), widgets: false };
     out.setupDone = true;
   } else {
     if (typeof cfg.features !== 'object' || cfg.features === null) throw new Error('features inválido');
-    out.features = { games: cfg.features.games === true, obs: cfg.features.obs === true };
+    out.features = Object.fromEntries(FEATURES.map((f) => [f, cfg.features[f] === true]));
     out.setupDone = cfg.setupDone === true;
   }
   if (cfg.hiddenGames !== undefined) {
@@ -94,21 +117,23 @@ function validate(cfg) {
   return out;
 }
 
-/** Turns the Jogos tab and the OBS page on or off; returns a new config. */
+/** Turns the Jogos tab and the template pages (OBS, Widgets) on or off; returns a new config. */
 function applyFeatures(cfg, features) {
   const next = structuredClone(cfg);
-  next.features = { ...cfg.features, ...features };
+  next.features = { ...cfg.features, ...Object.fromEntries(FEATURES.filter((f) => typeof features[f] === 'boolean').map((f) => [f, features[f]])) };
   next.setupDone = true;
-  const hasObs = next.pages.some((p) => p.template === 'obs');
-  if (next.features.obs && !hasObs) {
-    const used = new Set(next.pages.flatMap((p) => p.buttons.map((b) => b.id)));
-    const page = structuredClone(OBS_TEMPLATE);
-    for (const b of page.buttons) if (used.has(b.id)) b.id = `${b.id}-${Date.now().toString(36)}`;
-    next.pages.push(page);
-  } else if (!next.features.obs && hasObs) {
-    next.pages = next.pages.filter((p) => p.template !== 'obs');
-    if (!next.pages.length) next.pages = [{ name: 'Principal', buttons: [] }];
+  for (const [key, tpl] of Object.entries(TEMPLATES)) {
+    const has = next.pages.some((p) => p.template === key);
+    if (next.features[key] && !has) {
+      const used = new Set(next.pages.flatMap((p) => p.buttons.map((b) => b.id)));
+      const page = { ...structuredClone(tpl), template: key };
+      for (const b of page.buttons) if (used.has(b.id)) b.id = `${b.id}-${Date.now().toString(36)}`;
+      next.pages.push(page);
+    } else if (!next.features[key] && has) {
+      next.pages = next.pages.filter((p) => p.template !== key);
+    }
   }
+  if (!next.pages.length) next.pages = [{ name: 'Principal', buttons: [] }];
   return next;
 }
 
@@ -125,4 +150,4 @@ function save(cfg) {
   return clean;
 }
 
-module.exports = { validate, load, save, applyFeatures };
+module.exports = { validate, load, save, applyFeatures, FEATURES };
