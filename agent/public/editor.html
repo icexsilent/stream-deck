@@ -63,6 +63,7 @@
   <span id="conn" class="status">Conectando…</span>
   <span class="spacer"></span>
   <span id="dirty" hidden>Alterações não salvas</span>
+  <button class="btn" id="addApp" title="Escolher um .exe ou atalho e criar um botão que abre ele">➕ Adicionar programa</button>
   <button class="btn" id="rescan" title="Procurar jogos instalados de novo">🎮 Procurar jogos</button>
   <button class="btn" id="pair">📱 Parear celular</button>
   <button class="btn primary" id="save" disabled title="Ctrl+S">Salvar</button>
@@ -171,6 +172,37 @@ function renderGames(c) {
         onchange: (e) => change(() => { draft.hiddenGames = e.target.checked ? draft.hiddenGames.filter((x) => x !== g.id) : [...draft.hiddenGames, g.id]; }) })))));
 }
 
+// The agent opens the Windows file picker on this PC and returns the path, program name and icon.
+async function pickApp() {
+  const btn = $('#addApp');
+  btn.disabled = true;
+  toast('Escolha o programa na janela que abriu no PC…');
+  try {
+    const r = await fetch('/api/pick-app', { method: 'POST' });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error);
+    return body.cancelled ? null : body;
+  } catch (e) {
+    toast(`Não abriu a janela de escolher programa: ${e.message}`, true);
+    return null;
+  } finally {
+    btn.disabled = false;
+    document.querySelector('.toast:not(.err)')?.remove();
+  }
+}
+
+async function addApp() {
+  if (pageIdx === 'games') pageIdx = 0;
+  const app = await pickApp();
+  if (!app) return;
+  const p = draft.pages[pageIdx];
+  change(() => {
+    p.buttons.push({ id: `b${Date.now().toString(36)}`, label: app.label, type: 'open', target: app.target, ...(app.icon ? { icon: app.icon } : {}) });
+    sel = p.buttons.length - 1;
+  });
+  toast(`"${app.label}" adicionado. Clique em Salvar para mandar ao celular.`);
+}
+
 function addKey() {
   const p = draft.pages[pageIdx];
   change(() => { p.buttons.push({ id: `b${Date.now().toString(36)}`, label: 'Novo botão', type: 'hotkey', keys: '' }); sel = p.buttons.length - 1; });
@@ -210,7 +242,16 @@ function renderInspector() {
       } });
       return field('Teclas', h('div', { className: 'row' }, input, rec), 'Clique em Gravar e aperte o atalho, ou digite: ctrl shift alt win, a-z, 0-9, f1-f24, enter, esc, space, volumeup, mute, playpause…', 'f-keys');
     },
-    open: () => field('Programa, arquivo ou site', text('f-target', b.target, set('target'), 'calc.exe'), 'Ex.: notepad.exe, C:\\Jogos\\jogo.exe, https://youtube.com', 'f-target'),
+    open: () => field('Programa, arquivo ou site', h('div', { className: 'row' }, text('f-target', b.target, set('target'), 'calc.exe'),
+      h('button', { className: 'btn', textContent: 'Procurar…', onclick: async () => {
+        const app = await pickApp();
+        if (!app) return;
+        change(() => {
+          b.target = app.target;
+          if (!b.label || b.label === 'Novo botão') b.label = app.label;
+          if (app.icon && !b.icon) b.icon = app.icon;
+        });
+      } })), 'Clique em Procurar e escolha o .exe, ou digite: notepad.exe, https://youtube.com', 'f-target'),
     game: () => {
       const games = server?.games ?? [];
       return field('Jogo', select('f-game', b.game, { '': 'Escolha…', ...Object.fromEntries(games.map((g) => [g.id, `${g.label} (${g.source})`])) }, (e) => {
@@ -289,6 +330,7 @@ function save() {
 }
 
 $('#save').onclick = save;
+$('#addApp').onclick = addApp;
 $('#rescan').onclick = () => ws.send(JSON.stringify({ type: 'rescan' }));
 $('#pair').onclick = () => { $('#pairImg').src = `/api/pair.svg?${Date.now()}`; $('#pairDlg').showModal(); };
 window.addEventListener('keydown', (e) => {

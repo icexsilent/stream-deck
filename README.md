@@ -32,6 +32,7 @@ Sem o app, também dá para usar pelo navegador: leia o QR com a câmera do celu
 Abra o atalho **Stream Deck** na Área de Trabalho ou no Menu Iniciar (o agente precisa estar rodando). Ele abre numa janela própria, e também em http://localhost:3000/editor.
 
 - **Páginas** à esquerda, **botões** no meio, **propriedades** à direita.
+- **➕ Adicionar programa** abre a janela do Windows: escolha qualquer `.exe` ou atalho e o botão é criado com o nome e o ícone do programa. Em botões do tipo "Abrir", o **Procurar…** faz o mesmo.
 - **+** cria um botão. Arraste para reordenar. `Delete` apaga e `Ctrl+S` salva.
 - Cada botão tem texto, imagem (envie PNG ou JPG), cor e ação: atalho (o **⏺ Gravar** captura as teclas), abrir programa ou site, abrir jogo, OBS, ir para outra página.
 - **🎮 Jogos:** página automática com os jogos instalados (Steam, Epic, Riot, Xbox), com capa. Desmarque os que não quer ver. **Procurar jogos** atualiza a lista.

@@ -9,6 +9,7 @@ const { WebSocketServer } = require('ws');
 const config = require('./config');
 const { run } = require('./actions');
 const { scanAll, ICONS } = require('./games');
+const { pickApp } = require('./apps');
 
 const PORT = Number(process.env.PORT) || 3000;
 let cfg = config.load(); // fails at startup on a bad buttons.json, not on press
@@ -89,6 +90,15 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/pair.svg') {
     const [ip] = lanIps();
     return res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(ip ? await QRCode.toString(pairUrl(ip), { type: 'svg', margin: 1 }) : '');
+  }
+  if (pathname === '/api/pick-app' && req.method === 'POST') {
+    const json = (code, body) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify(body));
+    try {
+      const app = await pickApp();
+      return json(200, app ?? { cancelled: true });
+    } catch (e) {
+      return json(500, { error: e.message });
+    }
   }
   if (pathname === '/api/icon' && req.method === 'POST') {
     const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }[req.headers['content-type']];

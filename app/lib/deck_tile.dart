@@ -22,8 +22,8 @@ class _DeckTileState extends State<DeckTile> {
   @override
   Widget build(BuildContext context) {
     final b = widget.button;
-    // Exe icons extracted on the PC are 32px; stretching them to cover looks blurry, so they sit centered instead.
-    final smallIcon = b.icon != null && b.icon!.startsWith('game-') && b.icon!.endsWith('.png');
+    // Program icons (and 32px game exe icons) sit centered; stretched edge to edge they look wrong or blurry.
+    final smallIcon = b.icon != null && (b.icon!.startsWith('app-') || (b.icon!.startsWith('game-') && b.icon!.endsWith('.png')));
     final hasCover = b.icon != null && !smallIcon;
     final label = Text(
       b.label,
@@ -59,7 +59,7 @@ class _DeckTileState extends State<DeckTile> {
             child: Stack(fit: StackFit.expand, children: [
               if (b.icon != null)
                 Padding(
-                  padding: EdgeInsets.all(smallIcon ? 22 : 0),
+                  padding: smallIcon ? const EdgeInsets.fromLTRB(20, 12, 20, 36) : EdgeInsets.zero,
                   child: Image.network(
                     widget.iconUrl(b.icon!),
                     fit: smallIcon ? BoxFit.contain : BoxFit.cover,

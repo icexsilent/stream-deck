@@ -8,7 +8,8 @@ export function keyTile(b, iconUrl) {
     const img = document.createElement('img');
     img.src = iconUrl(b.icon);
     img.alt = '';
-    // Small exe icons look blurry stretched; show them centered instead of as a cover.
+    // Program icons (and small exe icons) look wrong stretched edge to edge; show them centered instead of as a cover.
+    if (b.icon.startsWith('app-')) img.classList.add('small');
     img.onload = () => { if (img.naturalWidth < 128) img.classList.add('small'); };
     img.onerror = () => img.remove();
     el.append(img);
