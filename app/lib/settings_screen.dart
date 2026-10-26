@@ -128,6 +128,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ]),
               ),
             ],
+            if (!first) ...[
+              const SizedBox(height: 24),
+              const Text('Desfazer', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const SizedBox(height: 4),
+              const Text('Volta os botões para como estavam antes da última mudança. Toque de novo para voltar mais. O histórico completo fica no editor do PC (🕘 Histórico).',
+                  style: TextStyle(color: Tokens.muted, fontSize: 13)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.undo),
+                label: const Text('Desfazer última mudança'),
+                onPressed: () async {
+                  final err = await widget.conn.undo();
+                  if (mounted) _toast(err ?? 'Desfeito ✅');
+                },
+              ),
+            ],
             if (!first && widget.conn.config != null) ...[
               const SizedBox(height: 24),
               const Text('Widget da tela inicial', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),

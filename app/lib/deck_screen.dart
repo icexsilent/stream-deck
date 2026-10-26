@@ -111,6 +111,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
         builder: (_) => ButtonEditor(
           button: p.buttons[i],
           games: cfg.games,
+          plugins: cfg.plugins,
           pageNames: [for (final x in draft!.pages) x.name, if (cfg.pages.any((x) => x.auto)) 'Jogos'],
           iconUrl: conn.iconUrl,
         ),

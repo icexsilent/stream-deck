@@ -1,0 +1,17 @@
+{
+  "id": "webhook",
+  "name": "Webhook",
+  "description": "Chama um endereço da internet ou da sua rede: Home Assistant, IFTTT, Discord webhook, n8n…",
+  "version": "1.0.0",
+  "actions": {
+    "call": {
+      "label": "Chamar URL",
+      "description": "Faz uma requisição HTTP quando a tecla é tocada.",
+      "fields": [
+        { "key": "url", "label": "URL", "type": "text", "placeholder": "https://…", "required": true },
+        { "key": "method", "label": "Método", "type": "select", "options": ["GET", "POST", "PUT"], "default": "POST" },
+        { "key": "body", "label": "Corpo (JSON ou texto, opcional)", "type": "textarea", "placeholder": "{\"content\": \"Ao vivo!\"}" }
+      ]
+    }
+  }
+}

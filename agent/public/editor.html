@@ -52,6 +52,13 @@
   dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-panel); padding: var(--s5); text-align: center; }
   dialog::backdrop { background: rgba(0,0,0,.6); }
   dialog img { width: 260px; height: 260px; background: #fff; padding: var(--s3); border-radius: var(--r-panel); }
+  #histDlg { width: min(520px, calc(100% - 32px)); text-align: left; }
+  #histDlg h2 { margin: 0 0 var(--s2); font-size: 18px; }
+  #histDlg p { color: var(--muted); margin: 0 0 var(--s4); }
+  .hist-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--border); }
+  .hist-row span { flex: 1; }
+  .hist-row small { display: block; color: var(--muted); }
+  #histList { max-height: 60vh; overflow: auto; }
   #setDlg { width: min(440px, calc(100% - 32px)); text-align: left; }
   #setDlg h2 { margin: 0 0 var(--s2); font-size: 18px; }
   #setDlg p { color: var(--muted); margin: 0 0 var(--s4); }
@@ -74,6 +81,7 @@
   <button class="btn" id="addApp" title="Escolher um .exe ou atalho e criar um botão que abre ele">➕ Adicionar programa</button>
   <button class="btn" id="rescan" title="Procurar jogos instalados de novo">🎮 Procurar jogos</button>
   <button class="btn" id="pair">📱 Parear celular</button>
+  <button class="btn" id="history" title="Ver e voltar versões anteriores (Ctrl+Z desfaz)">🕘 Histórico</button>
   <button class="btn icon" id="settings" title="Configurações" aria-label="Configurações">⚙️</button>
   <button class="btn primary" id="save" disabled title="Ctrl+S">Salvar</button>
 </header>
@@ -88,13 +96,14 @@
   <p><button class="btn" onclick="pairDlg.close()">Fechar</button></p>
 </dialog>
 <dialog id="setDlg" aria-labelledby="setTitle"><form method="dialog" id="setForm"></form></dialog>
+<dialog id="histDlg" aria-labelledby="histTitle"><form method="dialog" id="histForm"></form></dialog>
 <div id="offline" role="alert">Sem conexão com o agente. Tentando de novo…</div>
 <script type="module">
 import { keyTile, updateLive } from '/keytile.js';
 
 const TOKEN = '__TOKEN__';
 const PALETTE = ['#26282d', '#3a3f47', '#2563eb', '#0d9488', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#7c3aed'];
-const TYPES = { hotkey: 'Atalho de teclado', open: 'Abrir programa, arquivo ou site', game: 'Abrir jogo', obs: 'OBS', page: 'Ir para outra página', widget: 'Widget ao vivo' };
+const TYPES = { hotkey: 'Atalho de teclado', open: 'Abrir programa, arquivo ou site', game: 'Abrir jogo', obs: 'OBS', page: 'Ir para outra página', widget: 'Widget ao vivo', plugin: 'Plugin' };
 // Same list as agent/widgets.js KINDS; the hint says what a tap / long press does.
 const WIDGETS = {
   clock: ['Relógio', 'Mostra a hora e a data do PC.'],
@@ -110,6 +119,8 @@ const WIDGETS = {
 const OBS = { toggleStream: 'Ligar/desligar live', toggleRecord: 'Ligar/desligar gravação', scene: 'Trocar de cena', toggleMute: 'Mutar/desmutar fonte de áudio' };
 const $ = (s) => document.querySelector(s);
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.filter((k) => k != null)); return el; };
+// replaceChildren prints null as the text "null"; this skips conditional parts that are off.
+const fill = (el, ...kids) => el.replaceChildren(...kids.filter((k) => k != null));
 const iconUrl = (f) => `/icon/${encodeURIComponent(f)}`;
 
 let live = {};
@@ -292,6 +303,31 @@ function renderInspector() {
       })), WIDGETS[b.widget ?? 'clock'][1], 'f-widget'),
       b.widget === 'timer' ? field('Minutos', h('input', { type: 'number', id: 'f-min', min: 1, max: 600, value: b.minutes ?? 5, oninput: (e) => { b.minutes = Number(e.target.value); setDirty(); } }), null, 'f-min') : null,
       b.widget === 'weather' ? field('Cidade', text('f-city', b.city, set('city'), 'São Paulo'), 'Nome da cidade, ex.: Campinas, Lisboa', 'f-city') : null),
+    plugin: () => {
+      const list = server?.plugins ?? [];
+      if (!list.length) return h('p', { className: 'help', textContent: 'Nenhum plugin instalado. Veja ⚙️ Configurações → Plugins.' });
+      const key = b.plugin && b.action ? `${b.plugin}/${b.action}` : '';
+      const opts = { '': 'Escolha…', ...Object.fromEntries(list.flatMap((pl) => Object.entries(pl.actions).map(([aid, a]) => [`${pl.id}/${aid}`, `${pl.name} › ${a.label}`]))) };
+      const pl = list.find((x) => x.id === b.plugin);
+      const action = pl?.actions[b.action];
+      b.params ??= {};
+      // Form fields come from the plugin's own plugin.json.
+      const input = (f) => {
+        const id = `f-p-${f.key}`;
+        const set = (e) => { b.params[f.key] = f.type === 'number' ? Number(e.target.value) : e.target.value; setDirty(); };
+        if (f.type === 'select') return select(id, String(b.params[f.key] ?? f.default ?? f.options[0]), Object.fromEntries(f.options.map((o) => [o, o])), set);
+        if (f.type === 'textarea') return h('textarea', { id, rows: 3, value: b.params[f.key] ?? '', placeholder: f.placeholder ?? '', oninput: set, style: 'padding:var(--s2) var(--s3);background:var(--raised);border:1px solid var(--border);border-radius:var(--r-panel);color:var(--text);font:inherit;resize:vertical' });
+        return h('input', { type: f.type === 'number' ? 'number' : 'text', id, value: b.params[f.key] ?? '', placeholder: f.placeholder ?? '', oninput: set });
+      };
+      return h('div', {},
+        field('Ação do plugin', select('f-plugin', key, opts, (e) => change(() => {
+          const [pid, aid] = e.target.value.split('/');
+          Object.assign(b, { plugin: pid, action: aid, params: {} });
+          const a = list.find((x) => x.id === pid)?.actions[aid];
+          if (a && (!b.label || b.label === 'Novo botão')) b.label = a.label;
+        })), action?.description ?? pl?.description, 'f-plugin'),
+        ...(action?.fields ?? []).map((f) => field(f.required ? `${f.label} *` : f.label, input(f), null, `f-p-${f.key}`)));
+    },
     page: () => field('Página', select('f-page', b.page, { '': 'Escolha…', ...Object.fromEntries([...draft.pages.map((x) => x.name), 'Jogos'].map((n) => [n, n])) }, (e) => change(() => { b.page = e.target.value; })), null, 'f-page'),
   };
   const upload = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', className: 'sr-only', id: 'f-file', onchange: async (e) => {
@@ -302,7 +338,7 @@ function renderInspector() {
     const { icon } = await r.json();
     change(() => { b.icon = icon; });
   } });
-  ins.replaceChildren(
+  fill(ins,
     h('h2', { textContent: 'Botão' }),
     field('Texto', h('input', { type: 'text', id: 'f-label', value: b.label, maxLength: 40, oninput: set('label') }), 'Pode usar emoji 🎮', 'f-label'),
     h('div', { className: 'field' }, h('span', { className: 'lbl', textContent: 'Imagem' }),
@@ -337,6 +373,31 @@ function render() {
   renderPages(); renderCanvas(); renderInspector();
 }
 
+// ---- histórico (Plandex-style): every change can be undone ----
+function undo() {
+  if (dirty) return toast('Você tem alterações não salvas. Salve ou recarregue antes de desfazer.', true);
+  ws.send(JSON.stringify({ type: 'undo' }));
+  toast('Desfeito. Ctrl+Z de novo volta mais um passo.');
+}
+function openHistory(items) {
+  const when = (t) => new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  fill($('#histForm'),
+    h('h2', { id: 'histTitle', textContent: '🕘 Histórico' }),
+    h('p', { textContent: 'Antes de cada mudança o Stream Deck guarda como estava. Escolha uma versão para voltar a ela (dá para desfazer a volta também).' }),
+    items.length
+      ? h('div', { id: 'histList' }, ...items.map((it) => h('div', { className: 'hist-row' },
+          h('span', {}, `Antes de ${it.source}`, h('small', { textContent: `${when(it.at)} · ${it.pages} páginas, ${it.buttons} botões` })),
+          h('button', { type: 'button', className: 'btn', textContent: 'Voltar para esta', onclick: () => {
+            if (dirty) return toast('Salve ou descarte suas alterações antes.', true);
+            ws.send(JSON.stringify({ type: 'restore', id: it.id }));
+            $('#histDlg').close();
+            toast('Versão restaurada ✅');
+          } }))))
+      : h('p', { textContent: 'Nada ainda. As versões aparecem aqui depois da primeira mudança salva.' }),
+    h('div', { className: 'actions' }, h('button', { className: 'btn', textContent: 'Fechar', value: 'close' })));
+  $('#histDlg').showModal();
+}
+
 // ---- first run + Configurações (same dialog; the first run just has different wording) ----
 let setupShown = false;
 function openSettings(firstRun = false) {
@@ -346,12 +407,18 @@ function openSettings(firstRun = false) {
   const opt = (id, checked, title, desc) => h('label', { className: 'opt' }, h('input', { type: 'checkbox', id, checked }), h('span', {}, h('strong', { textContent: title }), h('small', { textContent: desc })));
   const send = (msg) => { ws.send(JSON.stringify(msg)); $('#setDlg').close(); };
   const apply = () => send({ type: 'setFeatures', features: { games: $('#o-games').checked, obs: $('#o-obs').checked, widgets: $('#o-widgets').checked } });
-  $('#setForm').replaceChildren(
+  fill($('#setForm'),
     h('h2', { id: 'setTitle', textContent: firstRun ? 'Bem-vindo ao Stream Deck 👋' : 'Configurações' }),
     h('p', { textContent: firstRun ? 'Escolha o que você quer além da página Principal. Dá para mudar depois em ⚙️ Configurações.' : 'Ligue ou desligue partes do Stream Deck. Vale para o PC e o celular.' }),
     opt('o-games', firstRun ? false : f.games, '🎮 Aba Jogos', 'Mostra todos os jogos instalados no PC (Steam, Epic, Riot, Xbox). Tocar abre o jogo.'),
     opt('o-obs', firstRun ? false : f.obs, '🎬 Página OBS', firstRun || !f.obs ? 'Botões para live, gravação, cena e microfone do OBS.' : 'Desligar apaga a página OBS e os botões dela.'),
     opt('o-widgets', firstRun ? false : f.widgets, '📊 Página Widgets', firstRun || !f.widgets ? 'Teclas ao vivo: relógio, CPU, RAM, GPU, música, volume, cronômetro, contador e clima.' : 'Desligar apaga a página Widgets e os botões dela.'),
+    firstRun ? null : h('div', { className: 'preset' },
+      h('strong', { textContent: '🧩 Plugins' }),
+      h('small', { style: 'display:block;color:var(--muted)', textContent: (server.plugins ?? []).length
+        ? `Instalados: ${server.plugins.map((p) => p.name).join(', ')}. Use a ação "Plugin" num botão.`
+        : 'Nenhum plugin instalado.' }),
+      h('small', { style: 'display:block;color:var(--muted);margin-top:var(--s1)', textContent: 'Para instalar um plugin: copie a pasta dele para a pasta "plugins" do Stream Deck e reinicie o PC.' })),
     preset ? h('div', { className: 'preset' },
       h('strong', { textContent: `⭐ ${preset.name}` }),
       h('small', { style: 'display:block;color:var(--muted)', textContent: `As configurações do criador na versão ${preset.version} (${preset.updatedAt}): ${preset.pages} páginas, ${preset.buttons} botões.` }),
@@ -376,7 +443,8 @@ function connect() {
   ws.onclose = () => { $('#conn').textContent = 'Desconectado'; $('#conn').className = 'status'; document.body.classList.add('offline'); setTimeout(connect, 2000); };
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if (m.type === 'live') {
+    if (m.type === 'history') openHistory(m.items);
+    else if (m.type === 'live') {
       live = m.values;
       for (const [id, v] of Object.entries(live)) { const el = document.querySelector(`#grid [data-id="${CSS.escape(id)}"]`); if (el) updateLive(el, v); }
     } else if (m.type === 'config') {
@@ -402,11 +470,13 @@ function save() {
 $('#save').onclick = save;
 $('#addApp').onclick = addApp;
 $('#rescan').onclick = () => ws.send(JSON.stringify({ type: 'rescan' }));
+$('#history').onclick = () => ws.send(JSON.stringify({ type: 'history' }));
 $('#settings').onclick = () => server && openSettings();
 $('#pair').onclick = () => { $('#pairImg').src = `/api/pair.svg?${Date.now()}`; $('#pairDlg').showModal(); };
 window.addEventListener('keydown', (e) => {
   if (recording) return;
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); undo(); }
   if (e.key === 'Delete' && sel !== null && pageIdx !== 'games' && !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) change(() => { draft.pages[pageIdx].buttons.splice(sel, 1); sel = null; });
 });
 window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });

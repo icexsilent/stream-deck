@@ -1,10 +1,11 @@
 {
   "name": "agent",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "Agente do Stream Deck: recebe toques do celular e executa no PC",
   "scripts": {
     "test": "node --test",
-    "start": "node server.js"
+    "start": "node server.js",
+    "mcp": "node mcp.js"
   },
   "keywords": [],
   "author": "",

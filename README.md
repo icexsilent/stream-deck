@@ -83,6 +83,21 @@ Teclas que mostram informação e atualizam sozinhas a cada segundo. Ligue a **�
 
 Até 6 botões do Stream Deck direto na tela inicial do celular, sem abrir o app. Em **⋮ → Configurações → Widget da tela inicial**, escolha a página e toque em **Adicionar à tela inicial**.
 
+### Histórico e Desfazer
+
+Antes de cada mudança, o Stream Deck guarda como estava (últimas 30 versões).
+
+- **PC:** `Ctrl+Z` desfaz, e o botão **🕘 Histórico** lista as versões para voltar a qualquer uma.
+- **Celular:** **⋮ → Configurações → Desfazer última mudança**.
+
+### Plugins
+
+Ações extras que se instalam copiando uma pasta: **Webhook** (Home Assistant, IFTTT, Discord…) e **Texto** (digita um texto pronto) já vêm junto. Como instalar e criar os seus: [docs/PLUGINS.md](docs/PLUGINS.md).
+
+### Assistente de IA (MCP)
+
+Peça para o Claude Code, Goose ou OpenCode "criar um botão que abre o Spotify" e ele cria. Como ligar: [docs/MCP.md](docs/MCP.md).
+
 ### Preset do Criador
 
 Os botões e páginas que o criador do app usa, atualizados a cada versão. Em **Configurações → Usar o Preset do Criador**. Atenção: isso **substitui** todos os seus botões.

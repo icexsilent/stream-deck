@@ -151,6 +151,9 @@ class DeckConnection extends ChangeNotifier {
   Future<String?> setFeatures({required bool games, required bool obs, required bool widgets}) =>
       _request({'type': 'setFeatures', 'features': {'games': games, 'obs': obs, 'widgets': widgets}});
 
+  /// Goes back one change (the PC keeps the last 30 versions).
+  Future<String?> undo() => _request({'type': 'undo'});
+
   /// Replaces all of the user's buttons with the creator's preset shipped in this build.
   Future<String?> applyCreatorPreset() => _request({'type': 'applyPreset', 'name': 'creator'});
 

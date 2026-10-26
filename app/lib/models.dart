@@ -4,20 +4,22 @@ import 'dart:math';
 class DeckButton {
   String id;
   String label;
-  String type; // hotkey | open | obs | game | page | widget
+  String type; // hotkey | open | obs | game | page | widget | plugin
   String? color; // #rrggbb
   String? icon; // file name served by the agent at /icon/<name>
   String? game; // game: id from the PC's game scan
   String? page; // page: name of the page to switch to
   String? keys; // hotkey
   String? target; // open
-  String? action; // obs: scene | toggleMute | toggleStream | toggleRecord
+  String? action; // obs: scene | toggleMute | toggleStream | toggleRecord; plugin: the plugin's action id
+  String? plugin; // plugin id (folder name in agent/plugins)
+  Map<String, dynamic> params; // plugin action fields
   String? name; // obs scene/input name
   String? widget; // widget: clock | cpu | ram | gpu | media | volume | timer | counter | weather
   int? minutes; // timer widget
   String? city; // weather widget
 
-  DeckButton({required this.id, required this.label, required this.type, this.color, this.icon, this.game, this.page, this.keys, this.target, this.action, this.name, this.widget, this.minutes, this.city});
+  DeckButton({required this.id, required this.label, required this.type, this.color, this.icon, this.game, this.page, this.keys, this.target, this.action, this.name, this.widget, this.minutes, this.city, this.plugin, Map<String, dynamic>? params}) : params = params ?? {};
 
   factory DeckButton.blank() => DeckButton(id: 'b${DateTime.now().millisecondsSinceEpoch}${Random().nextInt(1000)}', label: 'Novo', type: 'hotkey', keys: 'ctrl+c');
 
@@ -36,6 +38,8 @@ class DeckButton {
         widget: j['widget'],
         minutes: j['minutes'],
         city: j['city'],
+        plugin: j['plugin'],
+        params: j['params'] == null ? null : Map<String, dynamic>.from(j['params']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -48,7 +52,9 @@ class DeckButton {
         if (type == 'page') 'page': page,
         if (type == 'hotkey') 'keys': keys,
         if (type == 'open') 'target': target,
-        if (type == 'obs') 'action': action,
+        if (type == 'obs' || type == 'plugin') 'action': action,
+        if (type == 'plugin') 'plugin': plugin,
+        if (type == 'plugin') 'params': params,
         if (type == 'obs' && (action == 'scene' || action == 'toggleMute')) 'name': name,
         if (type == 'widget') 'widget': widget,
         if (type == 'widget' && widget == 'timer') 'minutes': minutes ?? 5,
@@ -94,6 +100,7 @@ class DeckConfig {
   final bool scanning;
   final bool gamesTab, obsPage, widgetsPage, setupDone; // changed only through Configurações, never by a save
   final PresetInfo? creatorPreset;
+  final List<PluginInfo> plugins;
   DeckConfig({
     required this.columns,
     required this.pages,
@@ -105,6 +112,7 @@ class DeckConfig {
     this.widgetsPage = false,
     this.setupDone = true,
     this.creatorPreset,
+    this.plugins = const [],
   });
 
   factory DeckConfig.fromJson(Map<String, dynamic> j) => DeckConfig(
@@ -118,6 +126,7 @@ class DeckConfig {
         widgetsPage: j['features']?['widgets'] == true,
         setupDone: j['setupDone'] != false,
         creatorPreset: j['creatorPreset'] == null ? null : PresetInfo.fromJson(j['creatorPreset']),
+        plugins: [for (final p in j['plugins'] ?? const []) PluginInfo.fromJson(p)],
       );
 
   /// What gets saved: only the user's pages. hiddenGames goes along so saving from the phone never un-hides games.
@@ -138,6 +147,7 @@ class DeckConfig {
         widgetsPage: widgetsPage,
         setupDone: setupDone,
         creatorPreset: creatorPreset,
+        plugins: plugins,
       );
 }
 
@@ -159,6 +169,36 @@ class Pairing {
 
   @override
   String toString() => 'http://$host:$port/?t=$token';
+}
+
+/// A plugin installed on the PC and the form of each of its actions (from its plugin.json).
+class PluginInfo {
+  final String id, name;
+  final Map<String, PluginAction> actions;
+  PluginInfo(this.id, this.name, this.actions);
+  factory PluginInfo.fromJson(Map<String, dynamic> j) => PluginInfo(j['id'], j['name'], {
+        for (final e in (j['actions'] as Map<String, dynamic>).entries) e.key: PluginAction.fromJson(e.value),
+      });
+}
+
+class PluginAction {
+  final String label;
+  final String? description;
+  final List<PluginField> fields;
+  PluginAction(this.label, this.description, this.fields);
+  factory PluginAction.fromJson(Map<String, dynamic> j) =>
+      PluginAction(j['label'], j['description'], [for (final f in j['fields'] ?? const []) PluginField.fromJson(f)]);
+}
+
+class PluginField {
+  final String key, label, type;
+  final String? placeholder;
+  final List<String> options;
+  final Object? defaultValue;
+  final bool required;
+  PluginField(this.key, this.label, this.type, this.placeholder, this.options, this.defaultValue, this.required);
+  factory PluginField.fromJson(Map<String, dynamic> j) => PluginField(j['key'], j['label'], j['type'], j['placeholder'],
+      [for (final o in j['options'] ?? const []) o.toString()], j['default'], j['required'] == true);
 }
 
 /// One live key reading sent by the PC every second.

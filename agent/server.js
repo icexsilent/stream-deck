@@ -11,6 +11,8 @@ const { run } = require('./actions');
 const { scanAll, ICONS } = require('./games');
 const { pickApp } = require('./apps');
 const widgets = require('./widgets');
+const plugins = require('./plugins');
+for (const err of plugins.loadAll()) console.warn(err);
 
 const PORT = Number(process.env.PORT) || 3000;
 const PRESET_DIR = path.join(__dirname, 'presets');
@@ -58,6 +60,7 @@ const publicConfig = () => ({
   games: games.map(({ id, label, source, icon }) => ({ id, label, source, icon })),
   scanning,
   creatorPreset: presetSummary(),
+  plugins: plugins.list(),
 });
 
 const pages = {
@@ -159,17 +162,28 @@ wss.on('connection', (ws, req) => {
     try { msg = JSON.parse(data); } catch { return; }
     if (msg.type === 'ping') return send(ws, { type: 'pong' });
     if (msg.type === 'rescan') return rescan();
+    if (msg.type === 'history') return send(ws, { type: 'history', items: config.history() });
+    if (msg.type === 'restore' || msg.type === 'undo') {
+      try {
+        cfg = msg.type === 'undo' ? config.undo() : config.restore(msg.id);
+        send(ws, { type: 'saved' });
+        broadcast({ type: 'config', config: publicConfig() });
+      } catch (e) {
+        send(ws, { type: 'error', error: e.message });
+      }
+      return;
+    }
     if (msg.type === 'setFeatures' || msg.type === 'applyPreset') {
       try {
         if (msg.type === 'setFeatures') {
-          cfg = config.save(config.applyFeatures(cfg, msg.features ?? {}));
+          cfg = config.save(config.applyFeatures(cfg, msg.features ?? {}), 'config');
         } else {
           const preset = creatorPreset();
           if (!preset) throw new Error('esta versão não tem Preset do Criador');
           // Preset icons ship in presets/icons; copy them next to the user's own so buttons find them.
           fs.mkdirSync(ICONS, { recursive: true });
           for (const f of fs.readdirSync(path.join(PRESET_DIR, 'icons'))) fs.copyFileSync(path.join(PRESET_DIR, 'icons', f), path.join(ICONS, f));
-          cfg = config.save({ ...preset.config, setupDone: true, obs: cfg.obs });
+          cfg = config.save({ ...preset.config, setupDone: true, obs: cfg.obs }, 'preset');
         }
         send(ws, { type: 'saved' });
         broadcast({ type: 'config', config: publicConfig() });
@@ -181,7 +195,7 @@ wss.on('connection', (ws, req) => {
     if (msg.type === 'save') {
       try {
         // OBS settings are edited on the PC only; features change only through Configurações, so older clients can't wipe them.
-        cfg = config.save({ ...msg.config, obs: cfg.obs, features: cfg.features, setupDone: cfg.setupDone });
+        cfg = config.save({ ...msg.config, obs: cfg.obs, features: cfg.features, setupDone: cfg.setupDone }, isLocal(req) ? (msg.source === 'ia' ? 'ia' : 'pc') : 'celular');
         send(ws, { type: 'saved' });
         broadcast({ type: 'config', config: publicConfig() });
       } catch (e) {

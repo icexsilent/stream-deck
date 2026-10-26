@@ -16,14 +16,16 @@ const _types = {
   'obs': 'OBS',
   'page': 'Ir para outra página',
   'widget': 'Widget ao vivo',
+  'plugin': 'Plugin',
 };
 
 class ButtonEditor extends StatefulWidget {
   final DeckButton button;
   final List<GameInfo> games;
+  final List<PluginInfo> plugins;
   final List<String> pageNames;
   final String Function(String file) iconUrl;
-  const ButtonEditor({super.key, required this.button, required this.games, required this.pageNames, required this.iconUrl});
+  const ButtonEditor({super.key, required this.button, required this.games, this.plugins = const [], required this.pageNames, required this.iconUrl});
 
   @override
   State<ButtonEditor> createState() => _ButtonEditorState();
@@ -62,6 +64,53 @@ class _ButtonEditorState extends State<ButtonEditor> {
       if (label.text.trim().isEmpty || label.text == 'Novo') label.text = g.label;
       b.icon ??= g.icon;
     });
+  }
+
+  // The form for a plugin action comes from the plugin's plugin.json on the PC.
+  List<Widget> _pluginFields() {
+    if (widget.plugins.isEmpty) return const [Text('Nenhum plugin instalado no PC.', style: TextStyle(color: Tokens.muted))];
+    final options = {
+      for (final p in widget.plugins)
+        for (final a in p.actions.entries) '${p.id}/${a.key}': '${p.name} › ${a.value.label}',
+    };
+    final key = '${b.plugin}/${b.action}';
+    final action = widget.plugins.where((p) => p.id == b.plugin).firstOrNull?.actions[b.action];
+    return [
+      DropdownButtonFormField<String>(
+        initialValue: options.containsKey(key) ? key : null,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: 'Ação do plugin', helperText: action?.description, helperMaxLines: 2),
+        items: [for (final e in options.entries) DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))],
+        onChanged: (v) => setState(() {
+          final parts = v!.split('/');
+          b
+            ..plugin = parts[0]
+            ..action = parts[1]
+            ..params = {};
+          final a = widget.plugins.firstWhere((p) => p.id == parts[0]).actions[parts[1]]!;
+          if (label.text.trim().isEmpty || label.text == 'Novo') label.text = a.label;
+        }),
+      ),
+      for (final f in action?.fields ?? const <PluginField>[]) ...[
+        const SizedBox(height: 16),
+        if (f.type == 'select')
+          DropdownButtonFormField<String>(
+            initialValue: f.options.contains('${b.params[f.key] ?? f.defaultValue}') ? '${b.params[f.key] ?? f.defaultValue}' : f.options.first,
+            decoration: InputDecoration(labelText: f.label),
+            items: [for (final o in f.options) DropdownMenuItem(value: o, child: Text(o))],
+            onChanged: (v) => b.params[f.key] = v,
+          )
+        else
+          TextFormField(
+            initialValue: '${b.params[f.key] ?? ''}',
+            minLines: f.type == 'textarea' ? 2 : 1,
+            maxLines: f.type == 'textarea' ? 5 : 1,
+            keyboardType: f.type == 'number' ? TextInputType.number : TextInputType.text,
+            decoration: InputDecoration(labelText: f.required ? '${f.label} *' : f.label, hintText: f.placeholder),
+            onChanged: (v) => b.params[f.key] = f.type == 'number' ? num.tryParse(v) ?? v : v,
+          ),
+      ],
+    ];
   }
 
   @override
@@ -165,6 +214,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
                     items: [for (final g in widget.games) DropdownMenuItem(value: g.id, child: Text('${g.label} (${g.source})', overflow: TextOverflow.ellipsis))],
                     onChanged: _pickGame,
                   ),
+          if (b.type == 'plugin') ..._pluginFields(),
           if (b.type == 'widget') ...[
             DropdownButtonFormField<String>(
               initialValue: widgetKinds.containsKey(b.widget) ? b.widget : 'clock',

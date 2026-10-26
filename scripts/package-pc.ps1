@@ -21,7 +21,7 @@ try {
 
 Write-Host '2/4 Agente (sem dados pessoais nem testes)...'
 # Personal data (buttons.json, .token, icons, logs) must never ship to other people.
-robocopy "$repo\agent" "$pkg\app" /E /NFL /NDL /NJH /NJS /NP /XF buttons.json .token agent.log streamdeck.ico *.test.js /XD "$repo\agent\node_modules" "$repo\agent\icons" | Out-Null # full paths: presets\icons must ship
+robocopy "$repo\agent" "$pkg\app" /E /NFL /NDL /NJH /NJS /NP /XF buttons.json .token agent.log streamdeck.ico *.test.js /XD "$repo\agent\node_modules" "$repo\agent\icons" "$repo\agent\history" | Out-Null # full paths: presets\icons must ship
 if ($LASTEXITCODE -ge 8) { throw 'falha ao copiar o agente' }
 Push-Location "$pkg\app"
 try { npm ci --omit=dev --no-audit --no-fund | Out-Null; if ($LASTEXITCODE) { throw 'npm ci falhou' } } finally { Pop-Location }

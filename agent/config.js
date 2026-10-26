@@ -3,7 +3,13 @@ const path = require('node:path');
 const { toVks } = require('./keys');
 const { KINDS: WIDGETS } = require('./widgets');
 
-const FILE = path.join(__dirname, 'buttons.json');
+// SD_DATA_DIR lets tests use a temp folder instead of the real buttons.json.
+const DATA = process.env.SD_DATA_DIR || __dirname;
+const FILE = path.join(DATA, 'buttons.json');
+const HISTORY = path.join(DATA, 'history');
+const KEEP = 30;
+// Read as "Antes de …" in the Histórico list.
+const SOURCES = { pc: 'uma mudança no editor do PC', celular: 'uma mudança no celular', config: 'uma mudança nas Configurações', preset: 'aplicar o Preset do Criador', restaurar: 'uma restauração', ia: 'uma mudança do assistente de IA' };
 const COLOR = /^#[0-9a-f]{6}$/i;
 const OBS_ACTIONS = ['scene', 'toggleMute', 'toggleStream', 'toggleRecord'];
 const ICON = /^[\w-]{1,80}\.(png|jpe?g|webp|gif)$/i;
@@ -89,7 +95,16 @@ function validate(cfg) {
             if (typeof b.city !== 'string' || !b.city.trim() || b.city.length > 60) throw new Error(`${where}: escreva a cidade do clima`);
             out.city = b.city.trim();
           }
-        } else throw new Error(`${where}: tipo deve ser hotkey, open, obs, game, page ou widget`);
+        } else if (b.type === 'plugin') {
+          // Which plugins exist is checked at press time, so a button survives a plugin being removed and reinstalled.
+          if (!/^[a-z0-9-]{1,40}$/.test(b.plugin ?? '') || !/^[a-z0-9-]{1,40}$/.test(b.action ?? '')) throw new Error(`${where}: escolha a ação do plugin`);
+          const params = b.params ?? {};
+          if (typeof params !== 'object' || Array.isArray(params) || Object.keys(params).length > 20) throw new Error(`${where}: parâmetros do plugin inválidos`);
+          for (const [k, v] of Object.entries(params)) {
+            if (!/^\w{1,40}$/.test(k) || !['string', 'number'].includes(typeof v) || String(v).length > 4000) throw new Error(`${where}: parâmetro "${k}" inválido`);
+          }
+          Object.assign(out, { plugin: b.plugin, action: b.action, params });
+        } else throw new Error(`${where}: tipo deve ser hotkey, open, obs, game, page, widget ou plugin`);
         return out;
       }),
     };
@@ -143,11 +158,51 @@ function load() {
   return validate(JSON.parse(fs.readFileSync(FILE, 'utf8')));
 }
 
-function save(cfg) {
+// Plandex-style safety net: before every change, the current file is copied to history/, so any change can be undone.
+function snapshot(source) {
+  if (!fs.existsSync(FILE)) return;
+  fs.mkdirSync(HISTORY, { recursive: true });
+  fs.copyFileSync(FILE, path.join(HISTORY, `${Date.now()}-${SOURCES[source] ? source : 'pc'}.json`));
+  const old = fs.readdirSync(HISTORY).filter((f) => /^\d+-\w+\.json$/.test(f)).sort().reverse().slice(KEEP);
+  for (const f of old) fs.rmSync(path.join(HISTORY, f), { force: true });
+}
+
+/** Newest first: { id, at, source, pages, buttons } — each entry is how things were before that change. */
+function history() {
+  let files = [];
+  try { files = fs.readdirSync(HISTORY).filter((f) => /^\d+-\w+\.json$/.test(f)).sort().reverse(); } catch { return []; }
+  return files.flatMap((f) => {
+    try {
+      const c = JSON.parse(fs.readFileSync(path.join(HISTORY, f), 'utf8'));
+      const [at, source] = f.replace('.json', '').split('-');
+      return [{ id: f.replace('.json', ''), at: Number(at), source: SOURCES[source] ?? source, pages: c.pages.length, buttons: c.pages.reduce((n, p) => n + p.buttons.length, 0) }];
+    } catch { return []; }
+  });
+}
+
+/** Puts an old version back (the current one goes to history too, so a restore can be undone). */
+function restore(id) {
+  if (!/^\d+-\w+$/.test(id ?? '')) throw new Error('versão inválida');
+  const file = path.join(HISTORY, `${id}.json`);
+  if (!fs.existsSync(file)) throw new Error('essa versão não existe mais');
+  return save(JSON.parse(fs.readFileSync(file, 'utf8')), 'restaurar');
+}
+
+/** Steps back one change per call: uses the newest snapshot that isn't a restore, then drops it so the next undo goes further back. */
+function undo() {
+  const entry = history().find((h) => !h.id.endsWith('-restaurar'));
+  if (!entry) throw new Error('nada para desfazer');
+  const restored = restore(entry.id);
+  fs.rmSync(path.join(HISTORY, `${entry.id}.json`), { force: true });
+  return restored;
+}
+
+function save(cfg, source = 'pc') {
   const clean = validate(cfg);
+  snapshot(source);
   fs.writeFileSync(FILE + '.tmp', JSON.stringify(clean, null, 2) + '\n');
   fs.renameSync(FILE + '.tmp', FILE); // atomic swap so a crash never leaves a half-written config
   return clean;
 }
 
-module.exports = { validate, load, save, applyFeatures, FEATURES };
+module.exports = { validate, load, save, applyFeatures, FEATURES, history, restore, undo };

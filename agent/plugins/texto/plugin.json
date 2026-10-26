@@ -1,0 +1,16 @@
+{
+  "id": "texto",
+  "name": "Texto",
+  "description": "Digita um texto pronto onde o cursor estiver: respostas rápidas no chat, e-mails, comandos de jogo.",
+  "version": "1.0.0",
+  "actions": {
+    "type": {
+      "label": "Digitar texto",
+      "description": "Digita o texto como se fosse o teclado (aceita acentos e emoji).",
+      "fields": [
+        { "key": "text", "label": "Texto", "type": "textarea", "placeholder": "gg wp!", "required": true },
+        { "key": "enter", "label": "Apertar Enter no final", "type": "select", "options": ["não", "sim"], "default": "não" }
+      ]
+    }
+  }
+}
