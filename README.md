@@ -12,7 +12,7 @@ Tudo fica na página de downloads: **[Releases → última versão](https://gith
 
 ### 1. No PC (5 min)
 
-1. Baixe **`StreamDeck-PC.zip`**.
+1. Baixe **[StreamDeck-PC.zip](https://github.com/icexsilent/stream-deck/releases/latest/download/StreamDeck-PC.zip)**.
 2. Clique com o botão direito no arquivo → **Extrair tudo…** → **Extrair**. Não rode de dentro do zip.
 3. Na pasta extraída, dê dois cliques em **`Instalar Stream Deck.bat`**.
    - Se o Windows avisar "O Windows protegeu o computador", clique em **Mais informações** → **Executar assim mesmo**.
@@ -23,8 +23,8 @@ Pronto: o Stream Deck fica instalado em `%LOCALAPPDATA%\StreamDeck` e liga sozin
 
 ### 2. No celular Android (3 min)
 
-1. No celular, abra a página de **[Releases](https://github.com/icexsilent/stream-deck/releases/latest)** e baixe **`StreamDeck-Android.apk`**.
-   - Celular muito antigo (antes de 2017) e o app não instala? Use o **`StreamDeck-Android-antigo.apk`**.
+1. No celular, baixe **[StreamDeck-Android.apk](https://github.com/icexsilent/stream-deck/releases/latest/download/StreamDeck-Android.apk)**.
+   - Celular muito antigo (antes de 2017) e o app não instala? Use o **[StreamDeck-Android-antigo.apk](https://github.com/icexsilent/stream-deck/releases/latest/download/StreamDeck-Android-antigo.apk)**.
 2. Abra o arquivo baixado. Se aparecer "instalar apps desconhecidos", toque em **Configurações** → ative **Permitir desta fonte** → volte e toque em **Instalar**.
 3. Abra o app **Stream Deck** e aponte a câmera para o QR code do PC.
 
