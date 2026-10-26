@@ -23,7 +23,7 @@ Nos exemplos abaixo, troque o caminho pelo seu.
 ## Claude Code
 
 ```powershell
-claude mcp add --scope user stream-deck -- node C:\Users\vinic\projetos\stream-deck\agent\mcp.js
+claude mcp add --scope user stream-deck -- node E:\ICEX\StreamDeck\agent\mcp.js
 ```
 
 Abra uma sessão nova e peça: "lista meus botões do Stream Deck".
@@ -34,7 +34,7 @@ App: **Settings → Extensions → Add custom extension**:
 
 - Type: **STDIO**
 - Name: `stream-deck`
-- Command: `node C:\Users\vinic\projetos\stream-deck\agent\mcp.js`
+- Command: `node E:\ICEX\StreamDeck\agent\mcp.js`
 
 Terminal: rode `goose configure` → **Add Extension** → **Command-line Extension** e use o mesmo comando.
 
