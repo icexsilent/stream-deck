@@ -106,7 +106,10 @@ class _ButtonEditorState extends State<ButtonEditor> {
             minLines: f.type == 'textarea' ? 2 : 1,
             maxLines: f.type == 'textarea' ? 5 : 1,
             keyboardType: f.type == 'number' ? TextInputType.number : TextInputType.text,
-            decoration: InputDecoration(labelText: f.required ? '${f.label} *' : f.label, hintText: f.placeholder),
+            // "file" fields: the file picker opens on the PC, so the phone only takes a typed path.
+            decoration: f.type == 'file'
+                ? InputDecoration(labelText: f.required ? '${f.label} *' : f.label, hintText: r'C:\Sons\buzina.mp3', helperText: 'Caminho no PC, ou use Procurar… no editor do PC')
+                : InputDecoration(labelText: f.required ? '${f.label} *' : f.label, hintText: f.placeholder),
             onChanged: (v) => b.params[f.key] = f.type == 'number' ? num.tryParse(v) ?? v : v,
           ),
       ],

@@ -92,7 +92,7 @@ Antes de cada mudança, o Stream Deck guarda como estava (últimas 30 versões).
 
 ### Plugins
 
-Ações extras que se instalam copiando uma pasta: **Webhook** (Home Assistant, IFTTT, Discord…) e **Texto** (digita um texto pronto) já vêm junto. Como instalar e criar os seus: [docs/PLUGINS.md](docs/PLUGINS.md).
+Ações extras que se instalam copiando uma pasta: **Webhook** (Home Assistant, IFTTT, Discord…) e **Texto** (digita um texto pronto) e **Áudio** (soundboard: toca sons no PC e no Discord, via [VB-Cable](https://vb-audio.com/Cable/)) já vêm junto. Como instalar e criar os seus: [docs/PLUGINS.md](docs/PLUGINS.md).
 
 ### Assistente de IA (MCP)
 
