@@ -47,7 +47,7 @@ No arquivo `%USERPROFILE%\.config\opencode\opencode.json`:
   "mcp": {
     "stream-deck": {
       "type": "local",
-      "command": ["node", "C:\\Users\\vinic\\projetos\\stream-deck\\agent\\mcp.js"],
+      "command": ["node", "E:\\ICEX\\StreamDeck\\agent\\mcp.js"],
       "enabled": true
     }
   }
