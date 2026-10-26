@@ -8,49 +8,67 @@
   body { margin: 0; background: #111; color: #eee; font-family: system-ui, sans-serif; }
   #status { padding: 8px 16px; font-size: 14px; color: #f66; }
   #status.on { color: #6f6; }
-  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 16px; }
-  button { aspect-ratio: 1; border: 0; border-radius: 16px; background: #2a2a2a; color: inherit; font-size: 18px; touch-action: manipulation; }
-  button:active, button.hit { background: #4a6cf7; }
-  button.err { background: #a33; }
+  #tabs { display: flex; gap: 8px; padding: 0 16px; overflow-x: auto; }
+  #tabs button { flex: none; padding: 8px 16px; border: 0; border-radius: 999px; background: #2a2a2a; color: inherit; font-size: 15px; }
+  #tabs button.sel { background: #4a6cf7; }
+  #grid { display: grid; gap: 12px; padding: 16px; }
+  #grid button { aspect-ratio: 1; border: 0; border-radius: 16px; background: #2a2a2a; color: inherit; font-size: 18px; touch-action: manipulation; }
+  #grid button:active, #grid button.hit { filter: brightness(1.6); }
+  #grid button.err { background: #a33 !important; }
+  #msg { padding: 0 16px; color: #f99; font-size: 14px; }
 </style>
 </head>
 <body>
 <div id="status">Conectando…</div>
+<div id="tabs"></div>
 <div id="grid"></div>
+<div id="msg"></div>
 <script>
 const token = new URLSearchParams(location.search).get('t');
-const status = document.getElementById('status');
-const grid = document.getElementById('grid');
-let ws;
+const $ = (id) => document.getElementById(id);
+let ws, cfg, pageIdx = 0;
 
 function flash(id, cls) {
-  const el = grid.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  const el = $('grid').querySelector(`[data-id="${CSS.escape(id)}"]`);
   if (!el) return;
   el.classList.add(cls);
   setTimeout(() => el.classList.remove(cls), 200);
 }
 
+function render() {
+  pageIdx = Math.min(pageIdx, cfg.pages.length - 1);
+  $('tabs').replaceChildren(...(cfg.pages.length > 1 ? cfg.pages.map((p, i) => {
+    const el = document.createElement('button');
+    el.textContent = p.name;
+    el.className = i === pageIdx ? 'sel' : '';
+    el.onclick = () => { pageIdx = i; render(); };
+    return el;
+  }) : []));
+  $('grid').style.gridTemplateColumns = `repeat(${cfg.columns}, 1fr)`;
+  $('grid').replaceChildren(...cfg.pages[pageIdx].buttons.map((b) => {
+    const el = document.createElement('button');
+    el.textContent = b.label;
+    el.dataset.id = b.id;
+    if (b.color) el.style.background = b.color;
+    el.onclick = () => { ws.send(JSON.stringify({ type: 'press', id: b.id })); navigator.vibrate?.(30); };
+    return el;
+  }));
+}
+
 function connect() {
   ws = new WebSocket(`ws://${location.host}/?t=${encodeURIComponent(token || '')}`);
-  ws.onopen = () => { status.textContent = 'Conectado'; status.className = 'on'; };
+  ws.onopen = () => { $('status').textContent = 'Conectado'; $('status').className = 'on'; };
   ws.onclose = (e) => {
-    status.className = '';
-    if (e.code === 4001) { status.textContent = 'Token inválido: use o link que o PC mostrou'; return; }
-    status.textContent = 'Desconectado, tentando de novo…';
+    $('status').className = '';
+    if (e.code === 4001) { $('status').textContent = 'Token inválido: use o link que o PC mostrou'; return; }
+    $('status').textContent = 'Desconectado, tentando de novo…';
     setTimeout(connect, 2000);
   };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'buttons') {
-      grid.replaceChildren(...msg.buttons.map((b) => {
-        const el = document.createElement('button');
-        el.textContent = b.label;
-        el.dataset.id = b.id;
-        el.onclick = () => { ws.send(JSON.stringify({ type: 'press', id: b.id })); navigator.vibrate?.(30); };
-        return el;
-      }));
-    } else if (msg.type === 'ok') flash(msg.id, 'hit');
-    else if (msg.type === 'error') flash(msg.id, 'err');
+    if (msg.type === 'config') { cfg = msg.config; render(); }
+    else if (msg.type === 'ok') { flash(msg.id, 'hit'); $('msg').textContent = ''; }
+    else if (msg.type === 'error') { if (msg.id) flash(msg.id, 'err'); $('msg').textContent = msg.error; }
   };
 }
 connect();

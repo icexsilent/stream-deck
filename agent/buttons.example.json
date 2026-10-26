@@ -1,0 +1,83 @@
+{
+  "columns": 3,
+  "pages": [
+    {
+      "name": "Principal",
+      "buttons": [
+        {
+          "id": "mic",
+          "label": "🎙️ Mutar mic",
+          "type": "hotkey",
+          "color": "#7c3aed",
+          "keys": "ctrl+shift+m"
+        },
+        {
+          "id": "play",
+          "label": "⏯️ Play/Pause",
+          "type": "hotkey",
+          "keys": "playpause"
+        },
+        {
+          "id": "volup",
+          "label": "🔊 Volume +",
+          "type": "hotkey",
+          "keys": "volumeup"
+        },
+        {
+          "id": "voldown",
+          "label": "🔉 Volume -",
+          "type": "hotkey",
+          "keys": "volumedown"
+        },
+        {
+          "id": "mute",
+          "label": "🔇 Mudo",
+          "type": "hotkey",
+          "keys": "mute"
+        },
+        {
+          "id": "calc",
+          "label": "🧮 Calculadora",
+          "type": "open",
+          "target": "calc.exe"
+        }
+      ]
+    },
+    {
+      "name": "OBS",
+      "buttons": [
+        {
+          "id": "obs-live",
+          "label": "🔴 Live on/off",
+          "type": "obs",
+          "color": "#dc2626",
+          "action": "toggleStream"
+        },
+        {
+          "id": "obs-rec",
+          "label": "⏺️ Gravar on/off",
+          "type": "obs",
+          "action": "toggleRecord"
+        },
+        {
+          "id": "obs-mic",
+          "label": "🎙️ Mic OBS",
+          "type": "obs",
+          "action": "toggleMute",
+          "name": "Mic/Aux"
+        },
+        {
+          "id": "obs-cena1",
+          "label": "🎬 Cena 1",
+          "type": "obs",
+          "action": "scene",
+          "name": "Cena"
+        }
+      ]
+    }
+  ],
+  "obs": {
+    "url": "ws://127.0.0.1:4455",
+    "password": ""
+  }
+}

@@ -1,0 +1,39 @@
+# Builds na nuvem pelo Codemagic (https://codemagic.io): o iOS compila num Mac de lá, sem precisar de um Mac seu.
+# Passo a passo em docs/PUBLICAR.md.
+workflows:
+  android:
+    name: Android APK
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Testes
+        script: cd app && flutter test
+      - name: Build APK
+        script: cd app && flutter build apk --release --split-per-abi --build-number=$BUILD_NUMBER
+    artifacts:
+      - app/build/app/outputs/flutter-apk/*.apk
+
+  ios:
+    name: iOS TestFlight
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic # nome da chave de API do App Store Connect cadastrada no Codemagic
+    environment:
+      flutter: stable
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.icexsilent.streamDeck
+    scripts:
+      - name: Testes
+        script: cd app && flutter test
+      - name: Perfis de assinatura
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: cd app && flutter build ipa --release --build-number=$BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - app/build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
