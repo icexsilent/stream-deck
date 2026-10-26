@@ -52,6 +52,14 @@
   dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-panel); padding: var(--s5); text-align: center; }
   dialog::backdrop { background: rgba(0,0,0,.6); }
   dialog img { width: 260px; height: 260px; background: #fff; padding: var(--s3); border-radius: var(--r-panel); }
+  #setDlg { width: min(440px, calc(100% - 32px)); text-align: left; }
+  #setDlg h2 { margin: 0 0 var(--s2); font-size: 18px; }
+  #setDlg p { color: var(--muted); margin: 0 0 var(--s4); }
+  .opt { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3); border: 1px solid var(--border); border-radius: var(--r-panel); margin-bottom: var(--s2); cursor: pointer; }
+  .opt input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); }
+  .opt small { display: block; color: var(--muted); }
+  .preset { margin-top: var(--s4); padding-top: var(--s4); border-top: 1px solid var(--border); }
+  .actions { display: flex; gap: var(--s2); justify-content: flex-end; margin-top: var(--s4); flex-wrap: wrap; }
   #offline { display: none; position: fixed; inset: auto 0 0 0; padding: var(--s2); text-align: center; background: var(--danger); color: #fff; font-size: 13px; }
   body.offline #offline { display: block; }
   .recording { border-color: var(--accent) !important; }
@@ -66,6 +74,7 @@
   <button class="btn" id="addApp" title="Escolher um .exe ou atalho e criar um botão que abre ele">➕ Adicionar programa</button>
   <button class="btn" id="rescan" title="Procurar jogos instalados de novo">🎮 Procurar jogos</button>
   <button class="btn" id="pair">📱 Parear celular</button>
+  <button class="btn icon" id="settings" title="Configurações" aria-label="Configurações">⚙️</button>
   <button class="btn primary" id="save" disabled title="Ctrl+S">Salvar</button>
 </header>
 <main>
@@ -78,6 +87,7 @@
   <img id="pairImg" alt="QR code de pareamento">
   <p><button class="btn" onclick="pairDlg.close()">Fechar</button></p>
 </dialog>
+<dialog id="setDlg" aria-labelledby="setTitle"><form method="dialog" id="setForm"></form></dialog>
 <div id="offline" role="alert">Sem conexão com o agente. Tentando de novo…</div>
 <script type="module">
 import { keyTile } from '/keytile.js';
@@ -114,7 +124,7 @@ function renderPages() {
   const games = server?.games ?? [];
   const items = draft.pages.map((p, i) => h('button', { className: 'page-item', ariaCurrent: String(i === pageIdx), onclick: () => { pageIdx = i; sel = null; render(); } },
     h('span', { textContent: p.name }), h('small', { textContent: p.buttons.length })));
-  items.push(h('button', { className: 'page-item', ariaCurrent: String(pageIdx === 'games'), onclick: () => { pageIdx = 'games'; sel = null; render(); } },
+  if (server?.features?.games) items.push(h('button', { className: 'page-item', ariaCurrent: String(pageIdx === 'games'), onclick: () => { pageIdx = 'games'; sel = null; render(); } },
     h('span', { textContent: '🎮 Jogos' }), h('small', { textContent: server?.scanning ? '…' : games.length - draft.hiddenGames.length })));
   $('#pages').replaceChildren(h('h2', { textContent: 'Páginas' }), ...items,
     h('button', { className: 'btn', textContent: '+ Nova página', onclick: () => change(() => { draft.pages.push({ name: `Página ${draft.pages.length + 1}`, buttons: [] }); pageIdx = draft.pages.length - 1; sel = null; }) }));
@@ -299,8 +309,38 @@ function renderInspector() {
 
 function render() {
   if (!draft) return;
-  if (pageIdx !== 'games' && pageIdx >= draft.pages.length) pageIdx = 0;
+  if ((pageIdx === 'games' && !server.features?.games) || (pageIdx !== 'games' && pageIdx >= draft.pages.length)) pageIdx = 0;
   renderPages(); renderCanvas(); renderInspector();
+}
+
+// ---- first run + Configurações (same dialog; the first run just has different wording) ----
+let setupShown = false;
+function openSettings(firstRun = false) {
+  if (dirty) return toast('Salve ou descarte suas alterações antes de mudar as configurações.', true);
+  const f = server.features ?? {};
+  const preset = server.creatorPreset;
+  const opt = (id, checked, title, desc) => h('label', { className: 'opt' }, h('input', { type: 'checkbox', id, checked }), h('span', {}, h('strong', { textContent: title }), h('small', { textContent: desc })));
+  const send = (msg) => { ws.send(JSON.stringify(msg)); $('#setDlg').close(); };
+  const apply = () => send({ type: 'setFeatures', features: { games: $('#o-games').checked, obs: $('#o-obs').checked } });
+  $('#setForm').replaceChildren(
+    h('h2', { id: 'setTitle', textContent: firstRun ? 'Bem-vindo ao Stream Deck 👋' : 'Configurações' }),
+    h('p', { textContent: firstRun ? 'Escolha o que você quer além da página Principal. Dá para mudar depois em ⚙️ Configurações.' : 'Ligue ou desligue partes do Stream Deck. Vale para o PC e o celular.' }),
+    opt('o-games', firstRun ? false : f.games, '🎮 Aba Jogos', 'Mostra todos os jogos instalados no PC (Steam, Epic, Riot, Xbox). Tocar abre o jogo.'),
+    opt('o-obs', firstRun ? false : f.obs, '🎬 Página OBS', firstRun || !f.obs ? 'Botões para live, gravação, cena e microfone do OBS.' : 'Desligar apaga a página OBS e os botões dela.'),
+    preset ? h('div', { className: 'preset' },
+      h('strong', { textContent: `⭐ ${preset.name}` }),
+      h('small', { style: 'display:block;color:var(--muted)', textContent: `As configurações do criador na versão ${preset.version} (${preset.updatedAt}): ${preset.pages} páginas, ${preset.buttons} botões.` }),
+      h('div', { className: 'actions', style: 'justify-content:flex-start' }, h('button', { type: 'button', className: 'btn', textContent: 'Usar o Preset do Criador',
+        onclick: () => confirm('Isso troca TODOS os seus botões e páginas pelos do criador. Continuar?') && send({ type: 'applyPreset', name: 'creator' }) }))) : null,
+    h('div', { className: 'actions' },
+      firstRun ? null : h('button', { className: 'btn', textContent: 'Cancelar', value: 'cancel' }),
+      h('button', { type: 'button', className: 'btn primary', textContent: firstRun ? 'Começar' : 'Aplicar', onclick: () => {
+        if (!firstRun && f.obs && !$('#o-obs').checked && !confirm('Desligar a Página OBS apaga ela e os botões dela. Continuar?')) return;
+        apply();
+      } })));
+  // On the first run, closing with Esc still counts as an answer, so the question never comes back.
+  $('#setDlg').oncancel = firstRun ? (e) => { e.preventDefault(); apply(); } : null;
+  $('#setDlg').showModal();
 }
 
 // ---- connection ----
@@ -313,7 +353,8 @@ function connect() {
     if (m.type === 'config') {
       const wasScanning = server?.scanning;
       fromServer(m.config);
-      if (wasScanning && !m.config.scanning) toast(`${m.config.games.length} jogos encontrados`);
+      if (wasScanning && !m.config.scanning && m.config.features?.games) toast(`${m.config.games.length} jogos encontrados`);
+      if (!m.config.setupDone && !setupShown) { setupShown = true; openSettings(true); }
     } else if (m.type === 'saved') { pendingSave = false; setDirty(false); toast('Salvo ✅ O celular já foi atualizado.'); }
     else if (m.type === 'error') {
       if (pendingSave && !m.id) { pendingSave = false; setDirty(true); }
@@ -332,6 +373,7 @@ function save() {
 $('#save').onclick = save;
 $('#addApp').onclick = addApp;
 $('#rescan').onclick = () => ws.send(JSON.stringify({ type: 'rescan' }));
+$('#settings').onclick = () => server && openSettings();
 $('#pair').onclick = () => { $('#pairImg').src = `/api/pair.svg?${Date.now()}`; $('#pairDlg').showModal(); };
 window.addEventListener('keydown', (e) => {
   if (recording) return;

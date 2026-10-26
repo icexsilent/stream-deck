@@ -7,6 +7,18 @@ const COLOR = /^#[0-9a-f]{6}$/i;
 const OBS_ACTIONS = ['scene', 'toggleMute', 'toggleStream', 'toggleRecord'];
 const ICON = /^[\w-]{1,80}\.(png|jpe?g|webp|gif)$/i;
 
+// Added or removed as a whole by the OBS switch in Configurações; `template` marks it so the switch finds it again.
+const OBS_TEMPLATE = {
+  name: 'OBS',
+  template: 'obs',
+  buttons: [
+    { id: 'obs-live', label: '🔴 Live on/off', type: 'obs', action: 'toggleStream', color: '#dc2626' },
+    { id: 'obs-rec', label: '⏺️ Gravar on/off', type: 'obs', action: 'toggleRecord' },
+    { id: 'obs-mic', label: '🎙️ Mic OBS', type: 'obs', action: 'toggleMute', name: 'Mic/Aux' },
+    { id: 'obs-cena1', label: '🎬 Cena 1', type: 'obs', action: 'scene', name: 'Cena' },
+  ],
+};
+
 // Throws a readable error on anything the phone or a hand edit could get wrong; the file is only written after this passes.
 function validate(cfg) {
   if (!cfg || typeof cfg !== 'object') throw new Error('config inválida');
@@ -21,6 +33,7 @@ function validate(cfg) {
     if (!Array.isArray(p.buttons)) throw new Error(`página "${p.name}" sem lista de botões`);
     return {
       name: p.name.trim(),
+      ...(p.template === 'obs' ? { template: 'obs' } : {}),
       buttons: p.buttons.map((b) => {
         const where = `botão "${b.label ?? b.id}" na página "${p.name}"`;
         if (typeof b.id !== 'string' || !/^[\w-]{1,40}$/.test(b.id)) throw new Error(`${where}: id inválido`);
@@ -59,6 +72,17 @@ function validate(cfg) {
     };
   });
   const out = { columns, pages };
+  if (cfg.features === undefined) {
+    // Configs from before Configurações existed: keep what that user already had, and skip the first-run questions.
+    const legacyObs = pages.find((p) => p.name === 'OBS' && p.buttons.some((b) => b.type === 'obs'));
+    if (legacyObs) legacyObs.template = 'obs';
+    out.features = { games: true, obs: Boolean(legacyObs) };
+    out.setupDone = true;
+  } else {
+    if (typeof cfg.features !== 'object' || cfg.features === null) throw new Error('features inválido');
+    out.features = { games: cfg.features.games === true, obs: cfg.features.obs === true };
+    out.setupDone = cfg.setupDone === true;
+  }
   if (cfg.hiddenGames !== undefined) {
     if (!Array.isArray(cfg.hiddenGames) || cfg.hiddenGames.some((g) => typeof g !== 'string')) throw new Error('hiddenGames inválido');
     out.hiddenGames = [...new Set(cfg.hiddenGames)];
@@ -68,6 +92,24 @@ function validate(cfg) {
     out.obs = { url: cfg.obs.url, password: String(cfg.obs.password ?? '') };
   }
   return out;
+}
+
+/** Turns the Jogos tab and the OBS page on or off; returns a new config. */
+function applyFeatures(cfg, features) {
+  const next = structuredClone(cfg);
+  next.features = { ...cfg.features, ...features };
+  next.setupDone = true;
+  const hasObs = next.pages.some((p) => p.template === 'obs');
+  if (next.features.obs && !hasObs) {
+    const used = new Set(next.pages.flatMap((p) => p.buttons.map((b) => b.id)));
+    const page = structuredClone(OBS_TEMPLATE);
+    for (const b of page.buttons) if (used.has(b.id)) b.id = `${b.id}-${Date.now().toString(36)}`;
+    next.pages.push(page);
+  } else if (!next.features.obs && hasObs) {
+    next.pages = next.pages.filter((p) => p.template !== 'obs');
+    if (!next.pages.length) next.pages = [{ name: 'Principal', buttons: [] }];
+  }
+  return next;
 }
 
 function load() {
@@ -83,4 +125,4 @@ function save(cfg) {
   return clean;
 }
 
-module.exports = { validate, load, save };
+module.exports = { validate, load, save, applyFeatures };

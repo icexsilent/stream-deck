@@ -12,6 +12,18 @@ const { scanAll, ICONS } = require('./games');
 const { pickApp } = require('./apps');
 
 const PORT = Number(process.env.PORT) || 3000;
+const PRESET_DIR = path.join(__dirname, 'presets');
+
+function creatorPreset() {
+  try { return JSON.parse(fs.readFileSync(path.join(PRESET_DIR, 'creator.json'), 'utf8')); } catch { return null; }
+}
+
+// What Configurações shows about the preset before the user applies it.
+function presetSummary() {
+  const p = creatorPreset();
+  if (!p) return null;
+  return { name: p.name, version: p.version, updatedAt: p.updatedAt, pages: p.config.pages.length, buttons: p.config.pages.reduce((n, pg) => n + pg.buttons.length, 0) };
+}
 let cfg = config.load(); // fails at startup on a bad buttons.json, not on press
 let games = [];
 let scanning = false;
@@ -40,10 +52,11 @@ function gamesPage() {
 // What phones and the editor see: the user's pages plus the generated Jogos page. The OBS password never leaves the PC.
 const publicConfig = () => ({
   ...cfg,
-  pages: games.length ? [...cfg.pages, gamesPage()] : cfg.pages,
+  pages: cfg.features.games && games.length ? [...cfg.pages, gamesPage()] : cfg.pages,
   obs: cfg.obs ? { url: cfg.obs.url } : undefined,
   games: games.map(({ id, label, source, icon }) => ({ id, label, source, icon })),
   scanning,
+  creatorPreset: presetSummary(),
 });
 
 const pages = {
@@ -144,9 +157,18 @@ wss.on('connection', (ws, req) => {
     try { msg = JSON.parse(data); } catch { return; }
     if (msg.type === 'ping') return send(ws, { type: 'pong' });
     if (msg.type === 'rescan') return rescan();
-    if (msg.type === 'save') {
+    if (msg.type === 'setFeatures' || msg.type === 'applyPreset') {
       try {
-        cfg = config.save({ ...msg.config, obs: cfg.obs }); // OBS settings are edited on the PC only
+        if (msg.type === 'setFeatures') {
+          cfg = config.save(config.applyFeatures(cfg, { games: msg.features?.games ?? cfg.features.games, obs: msg.features?.obs ?? cfg.features.obs }));
+        } else {
+          const preset = creatorPreset();
+          if (!preset) throw new Error('esta versão não tem Preset do Criador');
+          // Preset icons ship in presets/icons; copy them next to the user's own so buttons find them.
+          fs.mkdirSync(ICONS, { recursive: true });
+          for (const f of fs.readdirSync(path.join(PRESET_DIR, 'icons'))) fs.copyFileSync(path.join(PRESET_DIR, 'icons', f), path.join(ICONS, f));
+          cfg = config.save({ ...preset.config, setupDone: true, obs: cfg.obs });
+        }
         send(ws, { type: 'saved' });
         broadcast({ type: 'config', config: publicConfig() });
       } catch (e) {
@@ -154,7 +176,18 @@ wss.on('connection', (ws, req) => {
       }
       return;
     }
-    const b = msg.type === 'press' && [...cfg.pages, gamesPage()].flatMap((p) => p.buttons).find((x) => x.id === msg.id);
+    if (msg.type === 'save') {
+      try {
+        // OBS settings are edited on the PC only; features change only through Configurações, so older clients can't wipe them.
+        cfg = config.save({ ...msg.config, obs: cfg.obs, features: cfg.features, setupDone: cfg.setupDone });
+        send(ws, { type: 'saved' });
+        broadcast({ type: 'config', config: publicConfig() });
+      } catch (e) {
+        send(ws, { type: 'error', error: e.message });
+      }
+      return;
+    }
+    const b = msg.type === 'press' && [...cfg.pages, ...(cfg.features.games ? [gamesPage()] : [])].flatMap((p) => p.buttons).find((x) => x.id === msg.id);
     if (!b) return send(ws, { type: 'error', id: msg.id, error: 'botão não existe' });
     try {
       await run(b, cfg, games);

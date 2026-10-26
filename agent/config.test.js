@@ -48,3 +48,24 @@ test('ícones, jogos, páginas e jogos ocultos', () => {
   assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'game' }])), /jogo/);
   assert.throws(() => validate({ pages: [{ name: 'J', auto: true, buttons: [] }] }), /página sua/);
 });
+
+test('features: padrão novo, migração e liga/desliga da página OBS', () => {
+  const { applyFeatures } = require('./config');
+  const fresh = validate(require('./buttons.example.json'));
+  assert.deepStrictEqual([fresh.features, fresh.setupDone, fresh.pages.map((p) => p.name)], [{ games: false, obs: false }, false, ['Principal']]);
+  const legacy = validate({ pages: [{ name: 'P', buttons: [] }, { name: 'OBS', buttons: [{ id: 'o', label: 'O', type: 'obs', action: 'toggleStream' }] }] });
+  assert.deepStrictEqual([legacy.features, legacy.setupDone, legacy.pages[1].template], [{ games: true, obs: true }, true, 'obs']);
+  const on = validate(applyFeatures(fresh, { obs: true }));
+  assert.deepStrictEqual([on.pages.map((p) => p.name), on.setupDone], [['Principal', 'OBS'], true]);
+  assert.strictEqual(validate(applyFeatures(on, { obs: true })).pages.length, 2); // não duplica
+  assert.deepStrictEqual(validate(applyFeatures(on, { obs: false })).pages.map((p) => p.name), ['Principal']);
+});
+
+test('Preset do Criador é válido e não leva senha nem caminho pessoal', () => {
+  const preset = require('./presets/creator.json');
+  const c = validate({ ...preset.config, setupDone: true });
+  assert.ok(c.pages.length > 0);
+  const text = JSON.stringify(preset);
+  assert.ok(!/password/i.test(text));
+  assert.ok(!text.includes(require('node:os').userInfo().username + '\\'), 'caminho com o nome do usuário');
+});

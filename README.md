@@ -1,92 +1,123 @@
 # Stream Deck pelo Wi-Fi
 
-App no celular (Android, e depois iOS) que controla o PC pela rede local, sem cabos.
+Transforme o celular num Stream Deck: botões que controlam o PC pela rede Wi-Fi, sem cabos. Atalhos de teclado, abrir programas e jogos, volume, mídia e OBS.
 
-- `agent/`: programa que roda no PC com Windows (Node.js)
-- `app/`: app do celular (Flutter)
+- **PC:** Windows 10 ou 11
+- **Celular:** Android 7 ou mais novo (iPhone pelo navegador, veja abaixo)
+- PC e celular precisam estar **no mesmo Wi-Fi**
 
-## Instalar no PC (uma vez)
+## Como baixar e instalar
 
-```powershell
-cd C:\Users\vinic\projetos\stream-deck\agent
-powershell -ExecutionPolicy Bypass -File install.ps1
-```
+Tudo fica na página de downloads: **[Releases → última versão](https://github.com/icexsilent/stream-deck/releases/latest)**
 
-1. Clique em **Sim** quando o Windows pedir permissão. É para liberar o Firewall nas redes privadas.
-2. O navegador abre o QR code de pareamento.
-3. O agente passa a iniciar sozinho com o Windows. Para abrir o QR de novo, use o atalho **Stream Deck - Parear** na Área de Trabalho.
+### 1. No PC (5 min)
 
-Para remover: `powershell -ExecutionPolicy Bypass -File uninstall.ps1`.
-Para rodar sem instalar: `npm install` e depois `npm start`.
+1. Baixe **`StreamDeck-PC.zip`**.
+2. Clique com o botão direito no arquivo → **Extrair tudo…** → **Extrair**. Não rode de dentro do zip.
+3. Na pasta extraída, dê dois cliques em **`Instalar Stream Deck.bat`**.
+   - Se o Windows avisar "O Windows protegeu o computador", clique em **Mais informações** → **Executar assim mesmo**.
+4. Clique em **Sim** quando o Windows pedir permissão (é para liberar o Firewall na rede de casa).
+5. O navegador abre um **QR code**. Deixe ele aberto.
 
-## Instalar no celular (Android)
+Pronto: o Stream Deck fica instalado em `%LOCALAPPDATA%\StreamDeck` e liga sozinho junto com o Windows. Não precisa instalar mais nada (o Node.js já vem junto).
 
-1. Copie `app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` para o celular, ou baixe o APK na aba Releases do GitHub.
-2. Abra o arquivo e permita "instalar apps desconhecidos".
-3. Abra o app e leia o QR code do PC.
+### 2. No celular Android (3 min)
 
-Sem o app, também dá para usar pelo navegador: leia o QR com a câmera do celular.
+1. No celular, abra a página de **[Releases](https://github.com/icexsilent/stream-deck/releases/latest)** e baixe **`StreamDeck-Android.apk`**.
+   - Celular muito antigo (antes de 2017) e o app não instala? Use o **`StreamDeck-Android-antigo.apk`**.
+2. Abra o arquivo baixado. Se aparecer "instalar apps desconhecidos", toque em **Configurações** → ative **Permitir desta fonte** → volte e toque em **Instalar**.
+3. Abra o app **Stream Deck** e aponte a câmera para o QR code do PC.
 
-## Editor no PC
+Na primeira vez, o app pergunta se você quer a **aba Jogos** e a **página OBS**. Dá para mudar depois em **⋮ → Configurações**.
 
-Abra o atalho **Stream Deck** na Área de Trabalho ou no Menu Iniciar (o agente precisa estar rodando). Ele abre numa janela própria, e também em http://localhost:3000/editor.
+### iPhone
 
-- **Páginas** à esquerda, **botões** no meio, **propriedades** à direita.
-- **➕ Adicionar programa** abre a janela do Windows: escolha qualquer `.exe` ou atalho e o botão é criado com o nome e o ícone do programa. Em botões do tipo "Abrir", o **Procurar…** faz o mesmo.
-- **+** cria um botão. Arraste para reordenar. `Delete` apaga e `Ctrl+S` salva.
-- Cada botão tem texto, imagem (envie PNG ou JPG), cor e ação: atalho (o **⏺ Gravar** captura as teclas), abrir programa ou site, abrir jogo, OBS, ir para outra página.
-- **🎮 Jogos:** página automática com os jogos instalados (Steam, Epic, Riot, Xbox), com capa. Desmarque os que não quer ver. **Procurar jogos** atualiza a lista.
-- **📱 Parear celular** mostra o QR code.
+Ainda não tem app de iPhone. Mas funciona pelo navegador: aponte a câmera do iPhone para o QR code do PC e toque no link. Dica: no Safari, **Compartilhar → Adicionar à Tela de Início** deixa com cara de app.
 
-Se o atalho sumir, recrie com `powershell -ExecutionPolicy Bypass -File agent\shortcut.ps1`.
+### Atualizar
 
-## Usar
+Baixe a versão nova nos Releases e repita a instalação (PC: rode o `Instalar Stream Deck.bat` novo; celular: instale o APK novo por cima). Seus botões e o pareamento continuam.
+
+### Desinstalar
+
+- **PC:** dois cliques em **`Desinstalar Stream Deck.bat`** (na pasta extraída). Remove tudo, inclusive seus botões.
+- **Celular:** desinstale o app normalmente.
+
+## Como usar
+
+### No celular
 
 - **Tocar num botão:** executa a ação no PC.
-- **✏️ no topo:** modo edição. Toque num botão para mudar texto, cor e ação. **+** adiciona botão ou página, as setas reordenam, e segurar uma página renomeia ou apaga. **✓** salva no PC.
-- **Ações:** atalho de teclado, abrir programa/arquivo/site, abrir jogo, ir para outra página, e OBS (live, gravação, trocar cena, mutar fonte).
-- **🎮 Jogos:** aba com todos os jogos do PC. Tocar abre o jogo.
-- Se o IP do PC mudar, o app acha o PC sozinho na rede (mDNS).
+- **✏️ no topo:** modo edição. Toque num botão para mudar texto, cor e ação. **+** adiciona botão ou página, as setas reordenam, segurar uma página renomeia ou apaga. **Salvar** manda para o PC.
+- **⋮ → Configurações:** liga ou desliga a **aba Jogos** e a **página OBS**, e tem o **Preset do Criador**.
+
+### No PC: o editor
+
+Abra o atalho **Stream Deck** na Área de Trabalho ou no Menu Iniciar.
+
+- **➕ Adicionar programa:** escolha qualquer `.exe` ou atalho. O botão já vem com o nome e o ícone do programa.
+- **+** cria um botão. Arraste para reordenar. `Delete` apaga e `Ctrl+S` salva.
+- Cada botão tem texto, imagem, cor e uma ação: atalho de teclado (o **⏺ Gravar** captura as teclas), abrir programa/arquivo/site, abrir jogo, OBS, ou ir para outra página.
+- **⚙️ Configurações:** as mesmas opções do celular.
+- **📱 Parear celular:** mostra o QR code de novo.
+
+### Aba Jogos
+
+Quando ligada, mostra sozinha os jogos instalados no PC (Steam, Epic, Riot e Xbox), com capa. Tocar abre o jogo. No editor do PC dá para esconder os jogos que você não quer.
+
+### Preset do Criador
+
+Os botões e páginas que o criador do app usa, atualizados a cada versão. Em **Configurações → Usar o Preset do Criador**. Atenção: isso **substitui** todos os seus botões.
 
 ### OBS
 
-1. No OBS, abra **Ferramentas > Configurações do Servidor WebSocket**, ative o servidor e copie a senha.
-2. No PC, coloque a senha em `agent/buttons.json`, em `"obs": { "url": "ws://127.0.0.1:4455", "password": "..." }`.
-3. Reinicie o agente (rode o `install.ps1` de novo ou reinicie o PC).
+1. No OBS, abra **Ferramentas → Configurações do Servidor WebSocket**, ative o servidor e copie a senha.
+2. Abra `%LOCALAPPDATA%\StreamDeck\app\buttons.json` no Bloco de Notas e coloque a senha em `"obs": { "url": "ws://127.0.0.1:4455", "password": "SUA_SENHA" }`.
+3. Reinicie o PC (ou rode o instalador de novo).
 
 A senha do OBS fica só no PC e nunca vai para o celular.
 
+## Problemas comuns
+
+- **O celular não conecta:** confira se os dois estão no mesmo Wi-Fi. Rode o instalador de novo e clique em **Sim** no pedido do Firewall.
+- **"Procurando o PC na rede…":** o PC está desligado, ou o Stream Deck não está rodando. Reinicie o PC.
+- **Perdi o QR code:** atalho **Stream Deck - Parear** na Área de Trabalho, ou **📱 Parear celular** no editor.
+
 ## Segurança
 
-- O QR code carrega um token. Quem tem o token controla o PC, inclusive editando botões que abrem programas, então não compartilhe o QR.
-- `agent/buttons.json` (seus botões e a senha do OBS) fica fora do git. O modelo inicial é `buttons.example.json`.
-- Para trocar o token: apague `agent/.token`, reinicie o agente e pareie de novo.
-- A página `/pair` só abre no próprio PC.
+- O QR code tem uma senha (token) única do seu PC. Quem tem o QR controla o PC, então não compartilhe o QR.
+- Tudo acontece na sua rede local. Nada passa pela internet e o app não coleta dados.
+- Para trocar o token: apague `%LOCALAPPDATA%\StreamDeck\app\.token`, reinicie o PC e pareie de novo.
 
-## Desenvolvimento
+---
+
+## Para desenvolvedores
+
+- `agent/`: programa do PC (Node.js). Servidor WebSocket, editor web, detector de jogos.
+- `app/`: app do celular (Flutter).
+- `scripts/`: empacotamento e Preset do Criador.
 
 ```bash
-cd agent && npm test        # testes do agente
-cd app && flutter test      # testes do app
-cd app && flutter build apk --release --split-per-abi
+cd agent && npm install && npm start   # roda o agente desta pasta
+cd agent && npm test                   # testes do agente
+cd app && flutter test                 # testes do app
 ```
 
-Flutter está em `C:\Users\vinic\dev\flutter` e o Android SDK em `%LOCALAPPDATA%\Android\Sdk`.
+### Gerar uma versão
+
+```powershell
+node scripts/update-creator-preset.js                                      # Preset do Criador = seus botões atuais
+powershell -ExecutionPolicy Bypass -File scripts\package-pc.ps1            # dist\StreamDeck-PC.zip
+cd app; flutter build apk --release --split-per-abi                        # APKs em app\build\app\outputs\flutter-apk
+```
+
+O APK é assinado com a chave em `C:\Users\vinic\.stream-deck\` (fora do git; faça backup, sem ela os celulares não aceitam atualização). Para iOS e lojas, veja [docs/PUBLICAR.md](docs/PUBLICAR.md).
 
 ### Protocolo (WebSocket `ws://PC:3000/?t=TOKEN`)
 
 | Direção | Mensagem |
 |---|---|
-| PC → celular | `{"type":"config","config":{"columns":3,"pages":[{"name","buttons":[...]}]}}` (ao conectar e após salvar) |
+| PC → celular | `{"type":"config","config":{...}}` ao conectar e a cada mudança |
 | celular → PC | `{"type":"press","id":"mic"}` → `{"type":"ok","id"}` ou `{"type":"error","id","error"}` |
-| celular → PC | `{"type":"save","config":{...}}` → `{"type":"saved"}` ou `{"type":"error","error"}` |
-| celular → PC | `{"type":"ping"}` → `{"type":"pong"}` (a cada 10 s, detecta Wi-Fi caído) |
-
-## Plano
-
-- [x] **Fase 1:** agente no PC + controle pelo navegador
-- [x] **Fase 2:** app Android em Flutter
-- [x] **Fase 3:** pareamento por QR code, descoberta automática (mDNS), reconexão
-- [x] **Fase 4:** editor de botões, páginas, OBS, início com o Windows, instalador
-- [x] **Extra:** editor no PC, aba de jogos automática, imagens nos botões, visual novo
-- [ ] **Fase 5:** iOS e lojas. Configuração pronta (`codemagic.yaml`), faltam as contas: veja [docs/PUBLICAR.md](docs/PUBLICAR.md)
+| celular → PC | `save`, `setFeatures`, `applyPreset` → `{"type":"saved"}` ou `{"type":"error","error"}` |
+| celular → PC | `{"type":"rescan"}` procura jogos de novo; `{"type":"ping"}` → `pong` a cada 10 s |

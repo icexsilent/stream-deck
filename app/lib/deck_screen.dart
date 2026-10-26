@@ -7,6 +7,7 @@ import 'button_editor.dart';
 import 'connection.dart';
 import 'deck_tile.dart';
 import 'models.dart';
+import 'settings_screen.dart';
 import 'theme.dart';
 
 class DeckScreen extends StatefulWidget {
@@ -25,15 +26,27 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
   int page = 0;
   DeckConfig? draft; // non-null while editing; holds only the user's pages
   bool saving = false;
+  bool _welcomeShown = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    conn.addListener(_maybeWelcome);
     _sub = conn.results.stream.listen((r) {
       setState(() => _flash[r.id] = r.error == null);
       Timer(const Duration(milliseconds: 250), () => mounted ? setState(() => _flash.remove(r.id)) : null);
       if (r.error != null) _toast(r.error!);
+    });
+  }
+
+  // A brand-new install asks once which extras to turn on.
+  void _maybeWelcome() {
+    final c = conn.config;
+    if (c == null || c.setupDone || _welcomeShown) return;
+    _welcomeShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(conn: conn, firstRun: true)));
     });
   }
 
@@ -45,6 +58,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    conn.removeListener(_maybeWelcome);
     _sub.cancel();
     conn.dispose();
     super.dispose();
@@ -190,10 +204,16 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
                 : [
                     if (conn.config != null) IconButton(tooltip: 'Editar botões', icon: const Icon(Icons.edit_outlined), onPressed: _startEditing),
                     PopupMenuButton<String>(
-                      onSelected: (v) => v == 'unpair' ? widget.onUnpair() : conn.rescan(),
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'rescan', child: Text('Procurar jogos no PC')),
-                        PopupMenuItem(value: 'unpair', child: Text('Parear com outro PC')),
+                      tooltip: 'Mais opções',
+                      onSelected: (v) => switch (v) {
+                        'settings' => Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(conn: conn))),
+                        'rescan' => conn.rescan(),
+                        _ => widget.onUnpair(),
+                      },
+                      itemBuilder: (_) => [
+                        if (conn.config != null) const PopupMenuItem(value: 'settings', child: Text('Configurações')),
+                        if (conn.config?.gamesTab == true) const PopupMenuItem(value: 'rescan', child: Text('Procurar jogos no PC')),
+                        const PopupMenuItem(value: 'unpair', child: Text('Parear com outro PC')),
                       ],
                     ),
                   ],

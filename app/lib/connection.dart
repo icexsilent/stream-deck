@@ -143,13 +143,23 @@ class DeckConnection extends ChangeNotifier {
 
   void rescan() => _send({'type': 'rescan'});
 
+  /// Configurações: turns the Jogos tab / OBS page on or off. Returns null on success or the agent's error.
+  Future<String?> setFeatures({required bool games, required bool obs}) =>
+      _request({'type': 'setFeatures', 'features': {'games': games, 'obs': obs}});
+
+  /// Replaces all of the user's buttons with the creator's preset shipped in this build.
+  Future<String?> applyCreatorPreset() => _request({'type': 'applyPreset', 'name': 'creator'});
+
   String iconUrl(String file) => Uri(scheme: 'http', host: pairing.host, port: pairing.port, path: '/icon/$file', queryParameters: {'t': pairing.token}).toString();
 
   /// Returns null on success or the agent's error message.
-  Future<String?> saveConfig(DeckConfig c) {
+  Future<String?> saveConfig(DeckConfig c) => _request({'type': 'save', 'config': c.toJson()});
+
+  // Every config-changing message is answered with 'saved' or an error without an id.
+  Future<String?> _request(Map<String, dynamic> msg) {
     if (_ch == null) return Future.value('sem conexão com o PC');
     _saving = Completer<String?>();
-    _send({'type': 'save', 'config': c.toJson()});
+    _send(msg);
     return _saving!.future.timeout(const Duration(seconds: 5), onTimeout: () => 'o PC não respondeu');
   }
 

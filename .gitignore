@@ -5,3 +5,4 @@ agent.log
 agent/buttons.json
 streamdeck.ico
 agent/icons/
+dist/

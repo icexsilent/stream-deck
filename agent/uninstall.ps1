@@ -1,5 +1,6 @@
-﻿# Para o agente e remove início automático, atalho e regra de Firewall. Não apaga buttons.json nem o token.
-# Uso: powershell -ExecutionPolicy Bypass -File uninstall.ps1
+﻿# Para o agente e remove início automático, atalhos e regra de Firewall.
+# Instalado pelo pacote: também apaga %LOCALAPPDATA%\StreamDeck (botões, ícones e pareamento).
+# Uso: duplo clique em "Desinstalar Stream Deck.bat", ou powershell -ExecutionPolicy Bypass -File uninstall.ps1
 $port = 3000
 Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | ForEach-Object {
   $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($_.OwningProcess)"
@@ -12,4 +13,10 @@ try {
 } catch {
   Write-Warning 'Regra de Firewall não removida (permissão negada).'
 }
-Write-Host 'Agente parado e removido do início automático.'
+$installed = Join-Path $env:LOCALAPPDATA 'StreamDeck'
+if (Test-Path $installed) {
+  Set-Location $env:TEMP # the script may be running from inside that folder
+  Start-Sleep -Milliseconds 500
+  Remove-Item -Recurse -Force $installed -ErrorAction SilentlyContinue
+}
+Write-Host 'Stream Deck removido deste PC.'

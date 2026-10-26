@@ -57,4 +57,18 @@ void main() {
     expect((json['pages'] as List).first['buttons'].first, {'id': 'a', 'label': 'CS2', 'type': 'game', 'icon': 'game-steam-730.jpg', 'game': 'steam-730'});
     expect(c.games.single.label, 'CS2');
   });
+
+  test('página OBS mantém a marca ao salvar e Configurações chegam do PC', () {
+    final c = DeckConfig.fromJson({
+      'columns': 3,
+      'features': {'games': true, 'obs': true},
+      'setupDone': false,
+      'creatorPreset': {'name': 'Preset do Criador', 'version': '1.3.0', 'updatedAt': '2026-10-26', 'pages': 2, 'buttons': 12},
+      'pages': [
+        {'name': 'OBS', 'template': 'obs', 'buttons': []},
+      ],
+    });
+    expect([c.gamesTab, c.obsPage, c.setupDone, c.creatorPreset!.buttons], [true, true, false, 12]);
+    expect((c.copy().toJson()['pages'] as List).first['template'], 'obs');
+  });
 }
