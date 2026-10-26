@@ -1,4 +1,4 @@
-# Para o agente e remove início automático, atalho e regra de Firewall. Não apaga buttons.json nem o token.
+﻿# Para o agente e remove início automático, atalho e regra de Firewall. Não apaga buttons.json nem o token.
 # Uso: powershell -ExecutionPolicy Bypass -File uninstall.ps1
 $port = 3000
 Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | ForEach-Object {
@@ -6,7 +6,7 @@ Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinu
   if ($p.Name -eq 'node.exe' -and $p.CommandLine -like '*server.js*') { Stop-Process -Id $p.ProcessId -Force }
 }
 Remove-Item -ErrorAction SilentlyContinue (Join-Path ([Environment]::GetFolderPath('Startup')) 'Stream Deck Agent.vbs')
-Remove-Item -ErrorAction SilentlyContinue (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Stream Deck - Parear.url')
+foreach ($f in @("$([Environment]::GetFolderPath('Desktop'))\Stream Deck - Parear.url", "$([Environment]::GetFolderPath('Desktop'))\Stream Deck.lnk", "$([Environment]::GetFolderPath('Programs'))\Stream Deck.lnk")) { Remove-Item -ErrorAction SilentlyContinue $f }
 try {
   Start-Process cmd -ArgumentList '/c netsh advfirewall firewall delete rule name="Stream Deck Agent"' -Verb RunAs -WindowStyle Hidden -Wait
 } catch {

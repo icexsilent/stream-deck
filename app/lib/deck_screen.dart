@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 
 import 'button_editor.dart';
 import 'connection.dart';
+import 'deck_tile.dart';
 import 'models.dart';
+import 'theme.dart';
 
 class DeckScreen extends StatefulWidget {
   final Pairing pairing;
@@ -21,7 +23,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
   late final StreamSubscription<PressResult> _sub;
   final _flash = <String, bool>{}; // id -> ok?
   int page = 0;
-  DeckConfig? draft; // non-null while editing
+  DeckConfig? draft; // non-null while editing; holds only the user's pages
   bool saving = false;
 
   @override
@@ -52,6 +54,14 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(msg)));
 
+  void _startEditing() {
+    final c = conn.config!.copy()..pages.removeWhere((p) => p.auto);
+    setState(() {
+      draft = c;
+      page = page.clamp(0, c.pages.length - 1);
+    });
+  }
+
   Future<void> _save() async {
     setState(() => saving = true);
     final err = await conn.saveConfig(draft!);
@@ -63,8 +73,29 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
     _toast(err == null ? 'Salvo no PC ✅' : 'Não salvou: $err');
   }
 
+  void _press(DeckButton b, DeckConfig cfg) {
+    HapticFeedback.lightImpact();
+    if (b.type == 'page') {
+      final to = cfg.pages.indexWhere((p) => p.name == b.page);
+      if (to >= 0) setState(() => page = to);
+      return;
+    }
+    conn.press(b.id);
+  }
+
   Future<void> _editButton(DeckPage p, int i) async {
-    final res = await Navigator.push<EditResult>(context, MaterialPageRoute(builder: (_) => ButtonEditor(button: p.buttons[i])));
+    final cfg = conn.config!;
+    final res = await Navigator.push<EditResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ButtonEditor(
+          button: p.buttons[i],
+          games: cfg.games,
+          pageNames: [for (final x in draft!.pages) x.name, if (cfg.pages.any((x) => x.auto)) 'Jogos'],
+          iconUrl: conn.iconUrl,
+        ),
+      ),
+    );
     if (res == null) return;
     setState(() => res.button == null ? p.buttons.removeAt(i) : p.buttons[i] = res.button!);
   }
@@ -81,7 +112,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
-        content: TextField(controller: ctrl, autofocus: true),
+        content: TextField(controller: ctrl, autofocus: true, maxLength: 30),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('OK')),
@@ -134,26 +165,36 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
         final online = conn.state == LinkState.connected;
         return Scaffold(
           appBar: AppBar(
-            title: Row(children: [
-              Icon(Icons.circle, size: 12, color: online ? Colors.greenAccent : Colors.redAccent, semanticLabel: online ? 'conectado' : 'desconectado'),
-              const SizedBox(width: 8),
-              Text(editing ? 'Editando' : 'Stream Deck'),
-            ]),
+            titleSpacing: 16,
+            title: editing
+                ? const Text('Editando')
+                : Semantics(
+                    label: online ? 'Conectado ao PC' : 'Desconectado',
+                    child: Row(children: [
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: online ? Tokens.ok : Tokens.danger, shape: BoxShape.circle)),
+                      const SizedBox(width: 10),
+                      const Text('Stream Deck', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
             actions: editing
                 ? [
                     IconButton(tooltip: 'Descartar', icon: const Icon(Icons.close), onPressed: () => setState(() => draft = null)),
-                    IconButton(
-                      tooltip: 'Salvar no PC',
-                      icon: saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check),
-                      onPressed: saving ? null : _save,
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilledButton(
+                        onPressed: saving ? null : _save,
+                        child: saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Salvar'),
+                      ),
                     ),
                   ]
                 : [
-                    if (conn.config != null)
-                      IconButton(tooltip: 'Editar botões', icon: const Icon(Icons.edit), onPressed: () => setState(() => draft = conn.config!.copy())),
+                    if (conn.config != null) IconButton(tooltip: 'Editar botões', icon: const Icon(Icons.edit_outlined), onPressed: _startEditing),
                     PopupMenuButton<String>(
-                      onSelected: (v) => v == 'unpair' ? widget.onUnpair() : null,
-                      itemBuilder: (_) => [const PopupMenuItem(value: 'unpair', child: Text('Parear com outro PC'))],
+                      onSelected: (v) => v == 'unpair' ? widget.onUnpair() : conn.rescan(),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'rescan', child: Text('Procurar jogos no PC')),
+                        PopupMenuItem(value: 'unpair', child: Text('Parear com outro PC')),
+                      ],
                     ),
                   ],
           ),
@@ -165,7 +206,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
 
   Widget _status() {
     final (icon, text) = switch (conn.state) {
-      LinkState.badToken => (Icons.key_off, 'O PC recusou a conexão (token mudou).\nLeia o QR code de novo.'),
+      LinkState.badToken => (Icons.key_off, 'O PC recusou a conexão (o código mudou).\nLeia o QR code de novo.'),
       LinkState.searching => (Icons.wifi_find, 'Procurando o PC na rede…\nConfira se o agente está rodando e se o celular está no mesmo Wi-Fi.'),
       _ => (Icons.sync, 'Conectando em ${conn.pairing.host}…'),
     };
@@ -173,7 +214,7 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 48),
+          Icon(icon, size: 48, color: Tokens.muted),
           const SizedBox(height: 16),
           Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
           if (conn.state == LinkState.badToken) ...[
@@ -190,25 +231,32 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
     final p = cfg.pages[page];
     return Column(children: [
       if (!online)
-        MaterialBanner(
-          content: Text(conn.state == LinkState.searching ? 'Sem conexão. Procurando o PC na rede…' : 'Reconectando…'),
-          actions: const [SizedBox.shrink()],
+        Container(
+          width: double.infinity,
+          color: Tokens.danger.withValues(alpha: 0.15),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(conn.state == LinkState.searching ? 'Sem conexão. Procurando o PC na rede…' : 'Reconectando…', style: const TextStyle(fontSize: 13)),
         ),
       if (cfg.pages.length > 1 || editing)
         SizedBox(
-          height: 56,
-          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), children: [
+          height: 52,
+          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), children: [
             for (var i = 0; i < cfg.pages.length; i++)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: GestureDetector(
                   onLongPress: editing ? () => _pageMenu(i) : null,
-                  child: ChoiceChip(label: Text(cfg.pages[i].name), selected: i == page, onSelected: (_) => setState(() => page = i)),
+                  child: ChoiceChip(
+                    label: Text(cfg.pages[i].auto ? '🎮 ${cfg.pages[i].name}' : cfg.pages[i].name),
+                    selected: i == page,
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => page = i),
+                  ),
                 ),
               ),
             if (editing)
               ActionChip(
-                avatar: const Icon(Icons.add),
+                avatar: const Icon(Icons.add, size: 18),
                 label: const Text('Página'),
                 onPressed: () async {
                   final n = await _askName('Nova página', 'Página ${cfg.pages.length + 1}');
@@ -225,71 +273,64 @@ class _DeckScreenState extends State<DeckScreen> with WidgetsBindingObserver {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
-            const Expanded(child: Text('Toque num botão para editar. Segure uma página para renomear/apagar.', style: TextStyle(fontSize: 12))),
+            const Expanded(child: Text('Toque num botão para editar. Segure uma página para renomear ou apagar.', style: TextStyle(fontSize: 12, color: Tokens.muted))),
             IconButton(tooltip: 'Menos colunas', icon: const Icon(Icons.remove), onPressed: cfg.columns > 1 ? () => setState(() => cfg.columns--) : null),
             Text('${cfg.columns} col.'),
             IconButton(tooltip: 'Mais colunas', icon: const Icon(Icons.add), onPressed: cfg.columns < 8 ? () => setState(() => cfg.columns++) : null),
           ]),
         ),
       Expanded(
-        child: GridView.count(
-          crossAxisCount: cfg.columns,
-          padding: const EdgeInsets.all(12),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          children: [
-            for (var i = 0; i < p.buttons.length; i++) _tile(p, i, editing, online),
-            if (editing)
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                onPressed: () => _addButton(p),
-                child: const Icon(Icons.add, size: 32, semanticLabel: 'Adicionar botão'),
+        child: p.buttons.isEmpty && !editing
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    p.auto ? (conn.config!.scanning ? 'Procurando jogos no PC…' : 'Nenhum jogo encontrado no PC.') : 'Página vazia. Toque em ✏️ para criar botões.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Tokens.muted),
+                  ),
+                ),
+              )
+            : GridView.count(
+                crossAxisCount: cfg.columns,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                children: [
+                  for (var i = 0; i < p.buttons.length; i++) _tile(p, i, cfg, editing, online),
+                  if (editing)
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Tokens.rKey)),
+                        side: const BorderSide(color: Tokens.border, width: 2),
+                      ),
+                      onPressed: () => _addButton(p),
+                      child: const Icon(Icons.add, size: 32, color: Tokens.muted, semanticLabel: 'Adicionar botão'),
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     ]);
   }
 
-  Widget _tile(DeckPage p, int i, bool editing, bool online) {
+  Widget _tile(DeckPage p, int i, DeckConfig cfg, bool editing, bool online) {
     final b = p.buttons[i];
-    final flash = _flash[b.id];
-    final base = hexColor(b.color);
-    final color = flash == null ? base : (flash ? Color.lerp(base, Colors.white, 0.4)! : Colors.red.shade700);
-    final tile = Material(
-      color: color,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: editing
-            ? () => _editButton(p, i)
-            : online
-                ? () {
-                    HapticFeedback.lightImpact();
-                    conn.press(b.id);
-                  }
-                : null,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Text(b.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.white)),
-          ),
-        ),
-      ),
+    final tile = DeckTile(
+      button: b,
+      iconUrl: conn.iconUrl,
+      flash: _flash[b.id],
+      onTap: editing ? () => _editButton(p, i) : (online || b.type == 'page' ? () => _press(b, cfg) : null),
     );
     if (!editing) return tile;
+    Widget arrow(IconData icon, String tip, int to) => Material(
+          color: Colors.black54,
+          shape: const CircleBorder(),
+          child: IconButton(visualDensity: VisualDensity.compact, iconSize: 18, tooltip: tip, icon: Icon(icon), onPressed: () => _moveButton(p, i, to)),
+        );
     return Stack(children: [
       Positioned.fill(child: tile),
-      Positioned(
-        left: 0,
-        bottom: 0,
-        child: IconButton(iconSize: 18, tooltip: 'Mover para trás', icon: const Icon(Icons.chevron_left), onPressed: () => _moveButton(p, i, i - 1)),
-      ),
-      Positioned(
-        right: 0,
-        bottom: 0,
-        child: IconButton(iconSize: 18, tooltip: 'Mover para frente', icon: const Icon(Icons.chevron_right), onPressed: () => _moveButton(p, i, i + 1)),
-      ),
+      Positioned(left: 2, top: 2, child: arrow(Icons.chevron_left, 'Mover para trás', i - 1)),
+      Positioned(right: 2, top: 2, child: arrow(Icons.chevron_right, 'Mover para frente', i + 1)),
     ]);
   }
 }

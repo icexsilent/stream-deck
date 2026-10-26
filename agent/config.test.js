@@ -23,11 +23,28 @@ test('migra o formato antigo da Fase 1', () => {
 });
 
 test('rejeita configs ruins', () => {
-  assert.throws(() => validate({ pages: [] }), /pelo menos uma/);
+  assert.throws(() => validate({ pages: [] }), /pelo menos uma página/);
   assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'hotkey', keys: 'ctrl+banana' }])), /banana/);
   assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'rm' }])), /tipo/);
   assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'open', target: 'x' }, { id: 'a', label: 'B', type: 'open', target: 'y' }])), /repetido/);
   assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'obs', action: 'scene' }])), /cena/);
   assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'open', target: 'x', color: 'red' }])), /cor/);
   assert.throws(() => validate({ columns: 0, ...page([]) }), /columns/);
+});
+
+test('ícones, jogos, páginas e jogos ocultos', () => {
+  const c = validate({ hiddenGames: ['steam-1', 'steam-1'], pages: [
+    { name: 'P', buttons: [
+      { id: 'a', label: 'A', type: 'game', game: 'steam-730', icon: 'game-steam-730.jpg' },
+      { id: 'b', label: 'B', type: 'page', page: 'Jogos' },
+    ] },
+    { name: 'Jogos', auto: true, buttons: [{ id: 'x', label: 'X', type: 'game', game: 'steam-9' }] },
+  ] });
+  assert.strictEqual(c.pages.length, 1); // página automática não é salva
+  assert.strictEqual(c.pages[0].buttons[0].icon, 'game-steam-730.jpg');
+  assert.deepStrictEqual(c.hiddenGames, ['steam-1']);
+  assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'open', target: 'x', icon: '../server.js' }])), /ícone/);
+  assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'open', target: 'a" & del' }])), /aspas/);
+  assert.throws(() => validate(page([{ id: 'a', label: 'A', type: 'game' }])), /jogo/);
+  assert.throws(() => validate({ pages: [{ name: 'J', auto: true, buttons: [] }] }), /página sua/);
 });

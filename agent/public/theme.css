@@ -1,0 +1,56 @@
+/* Shared tokens for the phone deck page and the PC editor. Hardware-like graphite with one amber accent. */
+:root {
+  --bg: #0f1012;
+  --panel: #16171a;
+  --raised: #1e2024;
+  --key: #26282d;
+  --border: #2b2e33;
+  --text: #e8e9eb;
+  --muted: #9a9ea6;
+  --accent: #f5a524;
+  --accent-text: #1a1204;
+  --ok: #3ccf91;
+  --danger: #ef5b5b;
+  --focus: #ffd27a;
+
+  --r-chip: 999px;
+  --r-key: 12px;
+  --r-panel: 8px;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 var(--font); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.btn { display: inline-flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s4); border: 1px solid var(--border); border-radius: var(--r-panel); background: var(--raised); cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn.icon { padding: var(--s2); }
+
+.chip { padding: var(--s2) var(--s4); border: 1px solid var(--border); border-radius: var(--r-chip); background: transparent; cursor: pointer; white-space: nowrap; }
+.chip[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+
+.status { display: inline-flex; align-items: center; gap: var(--s2); font-size: 13px; color: var(--muted); }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.status.on::before { background: var(--ok); }
+
+/* A deck key: square, cover art fills it, label sits on a dark scrim so it stays readable on any image. */
+.key { position: relative; aspect-ratio: 1; border: 0; border-radius: var(--r-key); background: var(--key); overflow: hidden; cursor: pointer; padding: 0; touch-action: manipulation; transition: transform .08s ease-out, filter .12s; }
+.key:active, .key.hit { transform: scale(.94); filter: brightness(1.25); }
+.key.err { outline: 2px solid var(--danger); }
+.key img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.key img.small { inset: 22%; width: 56%; height: 56%; object-fit: contain; }
+.key .label { position: absolute; inset: auto 0 0 0; padding: var(--s2); font-size: 13px; font-weight: 600; text-align: center; line-height: 1.2; background: linear-gradient(transparent, rgba(0,0,0,.8)); overflow-wrap: anywhere; }
+.key.text-only .label { inset: 0; display: grid; place-items: center; background: none; font-size: 16px; }
+.key .initial { position: absolute; inset: 0; display: grid; place-items: center; font-size: 40px; font-weight: 700; color: var(--muted); }
+
+.toast { position: fixed; left: 50%; bottom: var(--s5); transform: translateX(-50%); max-width: calc(100% - 32px); padding: var(--s3) var(--s4); border-radius: var(--r-panel); background: var(--raised); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 10; }
+.toast.err { border-color: var(--danger); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

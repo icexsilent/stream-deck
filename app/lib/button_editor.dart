@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'models.dart';
-
-const palette = ['#2a2a2a', '#4a6cf7', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2'];
-
-Color hexColor(String? hex) => Color(int.parse((hex ?? '#2a2a2a').substring(1), radix: 16) | 0xFF000000);
+import 'theme.dart';
 
 /// Result of the editor: the edited button, or null when the user deleted it.
 class EditResult {
@@ -12,9 +9,20 @@ class EditResult {
   EditResult(this.button);
 }
 
+const _types = {
+  'hotkey': 'Atalho de teclado',
+  'open': 'Abrir programa, arquivo ou site',
+  'game': 'Abrir jogo',
+  'obs': 'OBS',
+  'page': 'Ir para outra página',
+};
+
 class ButtonEditor extends StatefulWidget {
   final DeckButton button;
-  const ButtonEditor({super.key, required this.button});
+  final List<GameInfo> games;
+  final List<String> pageNames;
+  final String Function(String file) iconUrl;
+  const ButtonEditor({super.key, required this.button, required this.games, required this.pageNames, required this.iconUrl});
 
   @override
   State<ButtonEditor> createState() => _ButtonEditorState();
@@ -41,9 +49,20 @@ class _ButtonEditorState extends State<ButtonEditor> {
     Navigator.pop(context, EditResult(b));
   }
 
+  void _pickGame(String? id) {
+    final g = widget.games.where((x) => x.id == id).firstOrNull;
+    setState(() {
+      b.game = id;
+      if (g == null) return;
+      if (label.text.trim().isEmpty || label.text == 'Novo') label.text = g.label;
+      b.icon ??= g.icon;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final needsName = b.type == 'obs' && (b.action == 'scene' || b.action == 'toggleMute');
+    const gap = SizedBox(height: 16);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar botão'),
@@ -56,36 +75,55 @@ class _ButtonEditorState extends State<ButtonEditor> {
         padding: const EdgeInsets.all(16),
         children: [
           TextField(controller: label, maxLength: 40, decoration: const InputDecoration(labelText: 'Texto (pode usar emoji)')),
+          const Text('Imagem', style: TextStyle(color: Tokens.muted)),
           const SizedBox(height: 8),
-          const Text('Cor'),
+          Row(children: [
+            Container(
+              width: 56,
+              height: 56,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(color: Tokens.key, borderRadius: BorderRadius.circular(Tokens.rKey), border: Border.all(color: Tokens.border)),
+              child: b.icon == null ? null : Image.network(widget.iconUrl(b.icon!), fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: b.icon == null
+                  ? const Text('Para pôr uma imagem, use o editor no PC (atalho "Stream Deck").', style: TextStyle(color: Tokens.muted, fontSize: 13))
+                  : Align(alignment: Alignment.centerLeft, child: OutlinedButton(onPressed: () => setState(() => b.icon = null), child: const Text('Remover imagem'))),
+            ),
+          ]),
+          gap,
+          const Text('Cor de fundo', style: TextStyle(color: Tokens.muted)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final c in palette)
               Semantics(
-                label: 'cor $c',
+                label: c == palette.first ? 'cor padrão' : 'cor $c',
                 selected: (b.color ?? palette.first) == c,
+                button: true,
                 child: InkWell(
                   onTap: () => setState(() => b.color = c == palette.first ? null : c),
                   customBorder: const CircleBorder(),
-                  child: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: hexColor(c),
-                    child: (b.color ?? palette.first) == c ? const Icon(Icons.check, color: Colors.white) : null,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: hexColor(c),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: (b.color ?? palette.first) == c ? Tokens.text : Colors.transparent, width: 2),
+                    ),
                   ),
                 ),
               ),
           ]),
-          const SizedBox(height: 24),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'hotkey', label: Text('Atalho'), icon: Icon(Icons.keyboard)),
-              ButtonSegment(value: 'open', label: Text('Abrir'), icon: Icon(Icons.open_in_new)),
-              ButtonSegment(value: 'obs', label: Text('OBS'), icon: Icon(Icons.videocam)),
-            ],
-            selected: {b.type},
-            onSelectionChanged: (s) => setState(() => b.type = s.first),
+          gap,
+          DropdownButtonFormField<String>(
+            initialValue: b.type,
+            decoration: const InputDecoration(labelText: 'Ação'),
+            items: [for (final e in _types.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+            onChanged: (v) => setState(() => b.type = v!),
           ),
-          const SizedBox(height: 16),
+          gap,
           if (b.type == 'hotkey')
             TextField(
               controller: keys,
@@ -109,6 +147,23 @@ class _ButtonEditorState extends State<ButtonEditor> {
                 helperText: r'Ex.: notepad.exe, C:\Jogos\jogo.exe, https://youtube.com',
               ),
             ),
+          if (b.type == 'game')
+            widget.games.isEmpty
+                ? const Text('Nenhum jogo detectado no PC. No editor do PC, clique em "Procurar jogos".', style: TextStyle(color: Tokens.muted))
+                : DropdownButtonFormField<String>(
+                    initialValue: widget.games.any((g) => g.id == b.game) ? b.game : null,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Jogo'),
+                    items: [for (final g in widget.games) DropdownMenuItem(value: g.id, child: Text('${g.label} (${g.source})', overflow: TextOverflow.ellipsis))],
+                    onChanged: _pickGame,
+                  ),
+          if (b.type == 'page')
+            DropdownButtonFormField<String>(
+              initialValue: widget.pageNames.contains(b.page) ? b.page : null,
+              decoration: const InputDecoration(labelText: 'Página'),
+              items: [for (final n in widget.pageNames) DropdownMenuItem(value: n, child: Text(n))],
+              onChanged: (v) => setState(() => b.page = v),
+            ),
           if (b.type == 'obs') ...[
             DropdownButtonFormField<String>(
               initialValue: b.action ?? 'toggleStream',
@@ -121,7 +176,8 @@ class _ButtonEditorState extends State<ButtonEditor> {
               ],
               onChanged: (v) => setState(() => b.action = v),
             ),
-            if (needsName)
+            if (needsName) ...[
+              gap,
               TextField(
                 controller: name,
                 decoration: InputDecoration(
@@ -129,6 +185,7 @@ class _ButtonEditorState extends State<ButtonEditor> {
                   helperText: 'Exatamente como aparece no OBS',
                 ),
               ),
+            ],
           ],
         ],
       ),

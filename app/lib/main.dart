@@ -4,6 +4,7 @@ import 'connection.dart';
 import 'deck_screen.dart';
 import 'models.dart';
 import 'pair_screen.dart';
+import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +27,7 @@ class _StreamDeckAppState extends State<StreamDeckApp> {
     return MaterialApp(
       title: 'Stream Deck',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF4A6CF7), brightness: Brightness.dark, useMaterial3: true),
+      theme: buildTheme(),
       home: pairing == null
           ? PairScreen(onPaired: (p) async {
               await DeckConnection.save(p);

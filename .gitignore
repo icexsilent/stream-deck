@@ -3,3 +3,5 @@ node_modules/
 agent.log
 *.tmp
 agent/buttons.json
+streamdeck.ico
+agent/icons/

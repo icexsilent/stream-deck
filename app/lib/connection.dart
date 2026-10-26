@@ -141,6 +141,10 @@ class DeckConnection extends ChangeNotifier {
 
   void press(String id) => _send({'type': 'press', 'id': id});
 
+  void rescan() => _send({'type': 'rescan'});
+
+  String iconUrl(String file) => Uri(scheme: 'http', host: pairing.host, port: pairing.port, path: '/icon/$file', queryParameters: {'t': pairing.token}).toString();
+
   /// Returns null on success or the agent's error message.
   Future<String?> saveConfig(DeckConfig c) {
     if (_ch == null) return Future.value('sem conexão com o PC');

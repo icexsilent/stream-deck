@@ -36,7 +36,25 @@ void main() {
       'columns': 4,
       'pages': [
         {'name': 'P', 'buttons': [{'id': 'x', 'label': 'X', 'type': 'open', 'color': '#ff0000', 'target': 'calc.exe'}]}
-      ]
+      ],
+      'hiddenGames': [],
     });
+  });
+
+  test('salvar não leva a página Jogos e mantém jogos ocultos', () {
+    final c = DeckConfig.fromJson({
+      'columns': 3,
+      'hiddenGames': ['steam-1'],
+      'games': [{'id': 'steam-730', 'label': 'CS2', 'source': 'Steam', 'icon': 'game-steam-730.jpg'}],
+      'pages': [
+        {'name': 'P', 'buttons': [{'id': 'a', 'label': 'CS2', 'type': 'game', 'game': 'steam-730', 'icon': 'game-steam-730.jpg'}]},
+        {'name': 'Jogos', 'auto': true, 'buttons': [{'id': 'auto-steam-730', 'label': 'CS2', 'type': 'game', 'game': 'steam-730'}]},
+      ],
+    });
+    final json = c.copy().toJson();
+    expect((json['pages'] as List).length, 1);
+    expect(json['hiddenGames'], ['steam-1']);
+    expect((json['pages'] as List).first['buttons'].first, {'id': 'a', 'label': 'CS2', 'type': 'game', 'icon': 'game-steam-730.jpg', 'game': 'steam-730'});
+    expect(c.games.single.label, 'CS2');
   });
 }

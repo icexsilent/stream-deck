@@ -1,4 +1,4 @@
-# Instala o agente: dependências, início automático com o Windows, atalho de pareamento e regra de Firewall.
+﻿# Instala o agente: dependências, início automático com o Windows, atalho de pareamento e regra de Firewall.
 # Uso: powershell -ExecutionPolicy Bypass -File install.ps1
 $ErrorActionPreference = 'Stop'
 $agent = $PSScriptRoot
@@ -26,7 +26,8 @@ sh.CurrentDirectory = "$agent"
 sh.Run "cmd /c node server.js > agent.log 2>&1", 0, False
 "@ | Set-Content -Encoding ASCII $vbs
 
-Write-Host '3/4 Criando atalho "Stream Deck - Parear" na Área de Trabalho...'
+Write-Host '3/4 Criando atalhos "Stream Deck" (editor) e "Stream Deck - Parear"...'
+& (Join-Path $agent 'shortcut.ps1')
 "[InternetShortcut]`r`nURL=http://localhost:$port/pair" | Set-Content -Encoding ASCII (Join-Path $desktop 'Stream Deck - Parear.url')
 
 Write-Host '4/4 Liberando no Firewall (redes privadas)...'

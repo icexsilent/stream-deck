@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stream Deck</title>
+<link rel="stylesheet" href="/theme.css">
+<style>
+  body { height: 100vh; display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+  header { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0 var(--s2) 0 0; }
+  header .spacer { flex: 1; }
+  #dirty { font-size: 13px; color: var(--accent); }
+  main { display: grid; grid-template-columns: 220px 1fr 320px; min-height: 0; }
+  aside, section { min-height: 0; overflow: auto; }
+  #pages { border-right: 1px solid var(--border); padding: var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s1); }
+  #pages h2, #inspector h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 var(--s2) var(--s2); }
+  .page-item { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: var(--s2) var(--s3); border: 0; border-radius: var(--r-panel); background: transparent; text-align: left; cursor: pointer; }
+  .page-item:hover { background: var(--raised); }
+  .page-item[aria-current="true"] { background: var(--raised); box-shadow: inset 3px 0 0 var(--accent); font-weight: 600; }
+  .page-item small { color: var(--muted); }
+  #pages .btn { margin-top: var(--s2); justify-content: center; }
+  #canvas { padding: var(--s5); display: flex; flex-direction: column; gap: var(--s4); align-items: center; }
+  #pagebar { display: flex; align-items: center; gap: var(--s2); width: min(100%, 640px); }
+  #pagebar select, .cols-lbl { font-size: 13px; color: var(--muted); }
+  #pagebar select { padding: var(--s2); background: var(--raised); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-panel); }
+  #pagebar input { flex: 1; min-width: 0; padding: var(--s2) var(--s3); background: var(--raised); border: 1px solid var(--border); border-radius: var(--r-panel); font-size: 18px; font-weight: 600; }
+  #device { width: min(100%, 640px); padding: var(--s4); background: #08090a; border: 1px solid var(--border); border-radius: 20px; }
+  #grid { display: grid; gap: var(--s3); }
+  #grid .key[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #grid .key.dragging { opacity: .4; }
+  #grid .key.drop { outline: 2px dashed var(--accent); }
+  .add-key { aspect-ratio: 1; border: 2px dashed var(--border); border-radius: var(--r-key); background: transparent; color: var(--muted); font-size: 32px; cursor: pointer; }
+  .add-key:hover { border-color: var(--muted); color: var(--text); }
+  #hint { color: var(--muted); font-size: 13px; text-align: center; }
+  #inspector { border-left: 1px solid var(--border); padding: var(--s4); background: var(--panel); }
+  .field { display: flex; flex-direction: column; gap: var(--s1); margin-bottom: var(--s4); }
+  .field label, .field .lbl { font-size: 13px; color: var(--muted); }
+  .field input[type=text], .field select { padding: var(--s2) var(--s3); background: var(--raised); border: 1px solid var(--border); border-radius: var(--r-panel); }
+  .field .help { font-size: 12px; color: var(--muted); }
+  .row { display: flex; gap: var(--s2); align-items: center; }
+  .row input { flex: 1; min-width: 0; }
+  .swatches { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .swatch[aria-checked="true"] { border-color: var(--text); }
+  .icon-preview { width: 56px; height: 56px; border-radius: var(--r-key); background: var(--key) center/cover no-repeat; border: 1px solid var(--border); }
+  .game-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--border); }
+  .game-row img, .game-row .ph { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: var(--key); flex: none; }
+  .game-row span { flex: 1; min-width: 0; }
+  .game-row small { display: block; color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: var(--s6) var(--s4); }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-panel); padding: var(--s5); text-align: center; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog img { width: 260px; height: 260px; background: #fff; padding: var(--s3); border-radius: var(--r-panel); }
+  #offline { display: none; position: fixed; inset: auto 0 0 0; padding: var(--s2); text-align: center; background: var(--danger); color: #fff; font-size: 13px; }
+  body.offline #offline { display: block; }
+  .recording { border-color: var(--accent) !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stream Deck</h1>
+  <span id="conn" class="status">Conectando…</span>
+  <span class="spacer"></span>
+  <span id="dirty" hidden>Alterações não salvas</span>
+  <button class="btn" id="rescan" title="Procurar jogos instalados de novo">🎮 Procurar jogos</button>
+  <button class="btn" id="pair">📱 Parear celular</button>
+  <button class="btn primary" id="save" disabled title="Ctrl+S">Salvar</button>
+</header>
+<main>
+  <aside id="pages" aria-label="Páginas"></aside>
+  <section id="canvas" aria-label="Botões da página"></section>
+  <aside id="inspector" aria-label="Propriedades"></aside>
+</main>
+<dialog id="pairDlg">
+  <h2>Leia no app do celular</h2>
+  <img id="pairImg" alt="QR code de pareamento">
+  <p><button class="btn" onclick="pairDlg.close()">Fechar</button></p>
+</dialog>
+<div id="offline" role="alert">Sem conexão com o agente. Tentando de novo…</div>
+<script type="module">
+import { keyTile } from '/keytile.js';
+
+const TOKEN = '__TOKEN__';
+const PALETTE = ['#26282d', '#3a3f47', '#2563eb', '#0d9488', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#7c3aed'];
+const TYPES = { hotkey: 'Atalho de teclado', open: 'Abrir programa, arquivo ou site', game: 'Abrir jogo', obs: 'OBS', page: 'Ir para outra página' };
+const OBS = { toggleStream: 'Ligar/desligar live', toggleRecord: 'Ligar/desligar gravação', scene: 'Trocar de cena', toggleMute: 'Mutar/desmutar fonte de áudio' };
+const $ = (s) => document.querySelector(s);
+const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.filter((k) => k != null)); return el; };
+const iconUrl = (f) => `/icon/${encodeURIComponent(f)}`;
+
+let ws, server, draft, dirty = false, pendingSave = false, pageIdx = 0, sel = null, recording = false;
+
+function toast(msg, err = false) {
+  document.querySelector('.toast')?.remove();
+  const t = h('div', { className: 'toast' + (err ? ' err' : ''), role: 'status', textContent: msg });
+  document.body.append(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function setDirty(v = true) { dirty = v; $('#dirty').hidden = !v; $('#save').disabled = !v; }
+const change = (fn) => { fn(); setDirty(); render(); };
+
+function fromServer(cfg) {
+  server = cfg;
+  if (dirty) return toast('Os botões mudaram em outro aparelho. Salve para sobrescrever ou recarregue a página.');
+  draft = structuredClone({ columns: cfg.columns, pages: cfg.pages.filter((p) => !p.auto), hiddenGames: cfg.hiddenGames ?? [] });
+  render();
+}
+
+// ---- pages sidebar ----
+function renderPages() {
+  const games = server?.games ?? [];
+  const items = draft.pages.map((p, i) => h('button', { className: 'page-item', ariaCurrent: String(i === pageIdx), onclick: () => { pageIdx = i; sel = null; render(); } },
+    h('span', { textContent: p.name }), h('small', { textContent: p.buttons.length })));
+  items.push(h('button', { className: 'page-item', ariaCurrent: String(pageIdx === 'games'), onclick: () => { pageIdx = 'games'; sel = null; render(); } },
+    h('span', { textContent: '🎮 Jogos' }), h('small', { textContent: server?.scanning ? '…' : games.length - draft.hiddenGames.length })));
+  $('#pages').replaceChildren(h('h2', { textContent: 'Páginas' }), ...items,
+    h('button', { className: 'btn', textContent: '+ Nova página', onclick: () => change(() => { draft.pages.push({ name: `Página ${draft.pages.length + 1}`, buttons: [] }); pageIdx = draft.pages.length - 1; sel = null; }) }));
+}
+
+// ---- canvas ----
+function renderCanvas() {
+  const c = $('#canvas');
+  if (pageIdx === 'games') return renderGames(c);
+  const p = draft.pages[pageIdx];
+  const grid = h('div', { id: 'grid' });
+  grid.style.gridTemplateColumns = `repeat(${draft.columns}, 1fr)`;
+  p.buttons.forEach((b, i) => {
+    const k = keyTile(b, iconUrl);
+    k.ariaPressed = String(sel === i);
+    k.title = `${b.label} — ${TYPES[b.type]}`;
+    k.draggable = true;
+    k.onclick = () => { sel = i; render(); };
+    k.ondragstart = (e) => { e.dataTransfer.setData('text/plain', i); k.classList.add('dragging'); };
+    k.ondragend = () => k.classList.remove('dragging');
+    k.ondragover = (e) => { e.preventDefault(); k.classList.add('drop'); };
+    k.ondragleave = () => k.classList.remove('drop');
+    k.ondrop = (e) => {
+      e.preventDefault();
+      const from = Number(e.dataTransfer.getData('text/plain'));
+      if (from === i) return;
+      change(() => { p.buttons.splice(i, 0, p.buttons.splice(from, 1)[0]); sel = i; });
+    };
+    grid.append(k);
+  });
+  grid.append(h('button', { className: 'add-key', ariaLabel: 'Adicionar botão', textContent: '+', onclick: addKey }));
+  const bar = h('div', { id: 'pagebar' },
+    h('input', { type: 'text', value: p.name, ariaLabel: 'Nome da página', maxLength: 30, oninput: (e) => { p.name = e.target.value; setDirty(); renderPages(); } }),
+    h('button', { className: 'btn icon', title: 'Mover página para cima', ariaLabel: 'Mover página para cima', textContent: '↑', disabled: pageIdx === 0, onclick: () => change(() => { draft.pages.splice(pageIdx - 1, 0, draft.pages.splice(pageIdx, 1)[0]); pageIdx--; }) }),
+    h('button', { className: 'btn icon danger', title: 'Apagar página', ariaLabel: 'Apagar página', textContent: '🗑', disabled: draft.pages.length < 2,
+      onclick: () => confirm(`Apagar a página "${p.name}" e seus ${p.buttons.length} botões?`) && change(() => { draft.pages.splice(pageIdx, 1); pageIdx = 0; sel = null; }) }),
+    h('label', { htmlFor: 'f-cols', className: 'cols-lbl', textContent: 'Colunas' }),
+    h('select', { id: 'f-cols', onchange: (e) => change(() => { draft.columns = Number(e.target.value); }) },
+      ...[2, 3, 4, 5, 6, 7, 8].map((n) => h('option', { value: n, textContent: n, selected: n === draft.columns }))));
+  c.replaceChildren(bar, h('div', { id: 'device' }, grid),
+    h('p', { id: 'hint', textContent: p.buttons.length ? 'Clique num botão para editar. Arraste para reordenar. Delete apaga o selecionado.' : 'Página vazia: clique em + para criar o primeiro botão.' }));
+}
+
+function renderGames(c) {
+  const games = server?.games ?? [];
+  const hidden = new Set(draft.hiddenGames);
+  if (server?.scanning) return c.replaceChildren(h('p', { className: 'empty', textContent: 'Procurando jogos instalados…' }));
+  if (!games.length) return c.replaceChildren(h('p', { className: 'empty', textContent: 'Nenhum jogo encontrado. Funciona com Steam, Epic, Riot e Xbox. Instalou algo agora? Clique em 🎮 Procurar jogos.' }));
+  c.replaceChildren(h('div', { style: 'width:min(100%,640px)' },
+    h('p', { id: 'hint', textContent: 'Esta página é montada sozinha com os jogos do PC. Desmarque os que não quer no celular.' }),
+    ...games.map((g) => h('label', { className: 'game-row' },
+      g.icon ? h('img', { src: iconUrl(g.icon), alt: '' }) : h('span', { className: 'ph' }),
+      h('span', {}, g.label, h('small', { textContent: g.source })),
+      h('input', { type: 'checkbox', checked: !hidden.has(g.id), ariaLabel: `Mostrar ${g.label}`,
+        onchange: (e) => change(() => { draft.hiddenGames = e.target.checked ? draft.hiddenGames.filter((x) => x !== g.id) : [...draft.hiddenGames, g.id]; }) })))));
+}
+
+function addKey() {
+  const p = draft.pages[pageIdx];
+  change(() => { p.buttons.push({ id: `b${Date.now().toString(36)}`, label: 'Novo botão', type: 'hotkey', keys: '' }); sel = p.buttons.length - 1; });
+  setTimeout(() => $('#f-label')?.select(), 0);
+}
+
+// ---- inspector ----
+const field = (label, input, help, id) => h('div', { className: 'field' }, h('label', { htmlFor: id, textContent: label }), input, help ? h('span', { className: 'help', textContent: help }) : null);
+const text = (id, value, oninput, placeholder = '') => h('input', { type: 'text', id, value: value ?? '', placeholder, oninput });
+const select = (id, value, opts, onchange) => h('select', { id, onchange }, ...Object.entries(opts).map(([v, t]) => h('option', { value: v, textContent: t, selected: v === value })));
+
+// Turns a key press into the agent's hotkey syntax, e.g. Ctrl+Shift+M -> "ctrl+shift+m".
+function comboFrom(e) {
+  const names = { Escape: 'esc', ' ': 'space', Enter: 'enter', Tab: 'tab', Backspace: 'backspace', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    PrintScreen: 'printscreen', MediaPlayPause: 'playpause', MediaTrackNext: 'next', MediaTrackPrevious: 'prev', AudioVolumeUp: 'volumeup', AudioVolumeDown: 'volumedown', AudioVolumeMute: 'mute' };
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return null;
+  let k = names[e.key] ?? (/^F\d{1,2}$/.test(e.key) ? e.key.toLowerCase() : /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : /^Digit\d$/.test(e.code) ? e.code.slice(5) : null);
+  if (!k) return null;
+  return [e.ctrlKey && 'ctrl', e.shiftKey && 'shift', e.altKey && 'alt', e.metaKey && 'win', k].filter(Boolean).join('+');
+}
+
+function renderInspector() {
+  const ins = $('#inspector');
+  if (pageIdx === 'games' || sel === null || !draft.pages[pageIdx]?.buttons[sel]) {
+    return ins.replaceChildren(h('h2', { textContent: 'Propriedades' }), h('p', { className: 'empty', textContent: 'Selecione um botão para editar.' }));
+  }
+  const p = draft.pages[pageIdx];
+  const b = p.buttons[sel];
+  const set = (k) => (e) => { b[k] = e.target.value; setDirty(); renderCanvas(); };
+  const typeFields = {
+    hotkey: () => {
+      const input = text('f-keys', b.keys, set('keys'), 'ctrl+shift+m');
+      const rec = h('button', { className: 'btn', textContent: '⏺ Gravar', onclick: () => {
+        recording = true; input.classList.add('recording'); input.value = 'Aperte o atalho…'; input.focus();
+        const onKey = (e) => { const c = comboFrom(e); if (!c) return; e.preventDefault(); recording = false; window.removeEventListener('keydown', onKey, true); b.keys = c; setDirty(); render(); };
+        window.addEventListener('keydown', onKey, true);
+      } });
+      return field('Teclas', h('div', { className: 'row' }, input, rec), 'Clique em Gravar e aperte o atalho, ou digite: ctrl shift alt win, a-z, 0-9, f1-f24, enter, esc, space, volumeup, mute, playpause…', 'f-keys');
+    },
+    open: () => field('Programa, arquivo ou site', text('f-target', b.target, set('target'), 'calc.exe'), 'Ex.: notepad.exe, C:\\Jogos\\jogo.exe, https://youtube.com', 'f-target'),
+    game: () => {
+      const games = server?.games ?? [];
+      return field('Jogo', select('f-game', b.game, { '': 'Escolha…', ...Object.fromEntries(games.map((g) => [g.id, `${g.label} (${g.source})`])) }, (e) => {
+        const g = games.find((x) => x.id === e.target.value);
+        change(() => { b.game = e.target.value; if (g) { if (!b.label || b.label === 'Novo botão') b.label = g.label; if (g.icon && !b.icon) b.icon = g.icon; } });
+      }), games.length ? null : 'Nenhum jogo detectado ainda.', 'f-game');
+    },
+    obs: () => h('div', {},
+      field('Ação', select('f-obs', b.action ?? 'toggleStream', OBS, (e) => change(() => { b.action = e.target.value; })), null, 'f-obs'),
+      ['scene', 'toggleMute'].includes(b.action) ? field(b.action === 'scene' ? 'Nome da cena' : 'Nome da fonte de áudio', text('f-name', b.name, set('name')), 'Exatamente como aparece no OBS', 'f-name') : null),
+    page: () => field('Página', select('f-page', b.page, { '': 'Escolha…', ...Object.fromEntries([...draft.pages.map((x) => x.name), 'Jogos'].map((n) => [n, n])) }, (e) => change(() => { b.page = e.target.value; })), null, 'f-page'),
+  };
+  const upload = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', className: 'sr-only', id: 'f-file', onchange: async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = await fetch('/api/icon', { method: 'POST', headers: { 'content-type': f.type }, body: f });
+    if (!r.ok) return toast(`Imagem não enviada: ${await r.text()}`, true);
+    const { icon } = await r.json();
+    change(() => { b.icon = icon; });
+  } });
+  ins.replaceChildren(
+    h('h2', { textContent: 'Botão' }),
+    field('Texto', h('input', { type: 'text', id: 'f-label', value: b.label, maxLength: 40, oninput: set('label') }), 'Pode usar emoji 🎮', 'f-label'),
+    h('div', { className: 'field' }, h('span', { className: 'lbl', textContent: 'Imagem' }),
+      h('div', { className: 'row' },
+        h('div', { className: 'icon-preview', style: b.icon ? `background-image:url(${iconUrl(b.icon)})` : '' }),
+        h('label', { className: 'btn', htmlFor: 'f-file', textContent: 'Escolher…' }), upload,
+        b.icon ? h('button', { className: 'btn', textContent: 'Remover', onclick: () => change(() => { delete b.icon; }) }) : null)),
+    h('div', { className: 'field' }, h('span', { className: 'lbl', textContent: 'Cor de fundo' }),
+      h('div', { className: 'swatches', role: 'radiogroup', ariaLabel: 'Cor de fundo' }, ...PALETTE.map((c, i) => h('button', {
+        className: 'swatch', role: 'radio', ariaLabel: i === 0 ? 'padrão' : c, ariaChecked: String((b.color ?? PALETTE[0]) === c), style: `background:${c}`,
+        onclick: () => change(() => { if (i === 0) delete b.color; else b.color = c; }) })))),
+    field('Ação', select('f-type', b.type, TYPES, (e) => change(() => { b.type = e.target.value; if (b.type === 'obs') b.action ??= 'toggleStream'; })), null, 'f-type'),
+    typeFields[b.type](),
+    draft.pages.length > 1 ? field('Mover para a página', select('f-move', String(pageIdx), Object.fromEntries(draft.pages.map((x, i) => [i, x.name])), (e) => change(() => {
+      const to = Number(e.target.value);
+      draft.pages[to].buttons.push(p.buttons.splice(sel, 1)[0]);
+      pageIdx = to; sel = draft.pages[to].buttons.length - 1;
+    })), null, 'f-move') : null,
+    h('div', { className: 'row' },
+      h('button', { className: 'btn', textContent: 'Duplicar', onclick: () => change(() => { p.buttons.splice(sel + 1, 0, { ...structuredClone(b), id: `b${Date.now().toString(36)}` }); sel++; }) }),
+      h('button', { className: 'btn danger', textContent: 'Apagar botão', onclick: () => change(() => { p.buttons.splice(sel, 1); sel = null; }) })),
+  );
+}
+
+function render() {
+  if (!draft) return;
+  if (pageIdx !== 'games' && pageIdx >= draft.pages.length) pageIdx = 0;
+  renderPages(); renderCanvas(); renderInspector();
+}
+
+// ---- connection ----
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/?t=${TOKEN}`);
+  ws.onopen = () => { $('#conn').textContent = 'Conectado'; $('#conn').className = 'status on'; document.body.classList.remove('offline'); };
+  ws.onclose = () => { $('#conn').textContent = 'Desconectado'; $('#conn').className = 'status'; document.body.classList.add('offline'); setTimeout(connect, 2000); };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'config') {
+      const wasScanning = server?.scanning;
+      fromServer(m.config);
+      if (wasScanning && !m.config.scanning) toast(`${m.config.games.length} jogos encontrados`);
+    } else if (m.type === 'saved') { pendingSave = false; setDirty(false); toast('Salvo ✅ O celular já foi atualizado.'); }
+    else if (m.type === 'error') {
+      if (pendingSave && !m.id) { pendingSave = false; setDirty(true); }
+      toast(m.error, true);
+    }
+  };
+}
+
+function save() {
+  if (!dirty || ws.readyState !== 1) return;
+  pendingSave = true;
+  setDirty(false); // the incoming config broadcast must replace the draft, not be ignored as a conflict
+  ws.send(JSON.stringify({ type: 'save', config: draft }));
+}
+
+$('#save').onclick = save;
+$('#rescan').onclick = () => ws.send(JSON.stringify({ type: 'rescan' }));
+$('#pair').onclick = () => { $('#pairImg').src = `/api/pair.svg?${Date.now()}`; $('#pairDlg').showModal(); };
+window.addEventListener('keydown', (e) => {
+  if (recording) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); }
+  if (e.key === 'Delete' && sel !== null && pageIdx !== 'games' && !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) change(() => { draft.pages[pageIdx].buttons.splice(sel, 1); sel = null; });
+});
+window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+connect();
+</script>
+</body>
+</html>

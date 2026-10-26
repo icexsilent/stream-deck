@@ -37,9 +37,23 @@ async function obsCall(cfg, request, data) {
   await obs.call(request, data);
 }
 
-async function run(b, cfg) {
+// Quoted by hand: Epic launch links contain "&", which cmd would otherwise treat as a second command.
+function open(target) {
+  spawn('cmd', ['/c', `start "" "${target}"`], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true }).unref();
+}
+
+function launchGame(id, games) {
+  const g = games.find((x) => x.id === id);
+  if (!g) throw new Error('jogo não encontrado: foi desinstalado? Toque em "Procurar jogos" no editor.');
+  if (g.launch.uri) return open(g.launch.uri);
+  spawn(g.launch.exe, g.launch.args ?? [], { detached: true, stdio: 'ignore' }).unref();
+}
+
+async function run(b, cfg, games = []) {
   if (b.type === 'hotkey') return pressKeys(toVks(b.keys));
-  if (b.type === 'open') return void spawn('cmd', ['/c', 'start', '', b.target], { detached: true, stdio: 'ignore' }).unref();
+  if (b.type === 'open') return open(b.target);
+  if (b.type === 'game') return launchGame(b.game, games);
+  if (b.type === 'page') return; // page switches happen on the device
   if (b.action === 'scene') return obsCall(cfg, 'SetCurrentProgramScene', { sceneName: b.name });
   if (b.action === 'toggleMute') return obsCall(cfg, 'ToggleInputMute', { inputName: b.name });
   if (b.action === 'toggleStream') return obsCall(cfg, 'ToggleStream');

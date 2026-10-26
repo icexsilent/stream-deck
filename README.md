@@ -27,11 +27,24 @@ Para rodar sem instalar: `npm install` e depois `npm start`.
 
 Sem o app, também dá para usar pelo navegador: leia o QR com a câmera do celular.
 
+## Editor no PC
+
+Abra o atalho **Stream Deck** na Área de Trabalho ou no Menu Iniciar (o agente precisa estar rodando). Ele abre numa janela própria, e também em http://localhost:3000/editor.
+
+- **Páginas** à esquerda, **botões** no meio, **propriedades** à direita.
+- **+** cria um botão. Arraste para reordenar. `Delete` apaga e `Ctrl+S` salva.
+- Cada botão tem texto, imagem (envie PNG ou JPG), cor e ação: atalho (o **⏺ Gravar** captura as teclas), abrir programa ou site, abrir jogo, OBS, ir para outra página.
+- **🎮 Jogos:** página automática com os jogos instalados (Steam, Epic, Riot, Xbox), com capa. Desmarque os que não quer ver. **Procurar jogos** atualiza a lista.
+- **📱 Parear celular** mostra o QR code.
+
+Se o atalho sumir, recrie com `powershell -ExecutionPolicy Bypass -File agent\shortcut.ps1`.
+
 ## Usar
 
 - **Tocar num botão:** executa a ação no PC.
 - **✏️ no topo:** modo edição. Toque num botão para mudar texto, cor e ação. **+** adiciona botão ou página, as setas reordenam, e segurar uma página renomeia ou apaga. **✓** salva no PC.
-- **Ações:** atalho de teclado, abrir programa/arquivo/site, e OBS (live, gravação, trocar cena, mutar fonte).
+- **Ações:** atalho de teclado, abrir programa/arquivo/site, abrir jogo, ir para outra página, e OBS (live, gravação, trocar cena, mutar fonte).
+- **🎮 Jogos:** aba com todos os jogos do PC. Tocar abre o jogo.
 - Se o IP do PC mudar, o app acha o PC sozinho na rede (mDNS).
 
 ### OBS
@@ -74,4 +87,5 @@ Flutter está em `C:\Users\vinic\dev\flutter` e o Android SDK em `%LOCALAPPDATA%
 - [x] **Fase 2:** app Android em Flutter
 - [x] **Fase 3:** pareamento por QR code, descoberta automática (mDNS), reconexão
 - [x] **Fase 4:** editor de botões, páginas, OBS, início com o Windows, instalador
+- [x] **Extra:** editor no PC, aba de jogos automática, imagens nos botões, visual novo
 - [ ] **Fase 5:** iOS e lojas. Configuração pronta (`codemagic.yaml`), faltam as contas: veja [docs/PUBLICAR.md](docs/PUBLICAR.md)
