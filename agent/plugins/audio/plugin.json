@@ -1,0 +1,17 @@
+{
+  "id": "audio",
+  "name": "Áudio",
+  "description": "Soundboard: toca um som no PC e no Discord (via VB-Cable).",
+  "version": "1.0.0",
+  "actions": {
+    "play": {
+      "label": "Tocar som",
+      "description": "Toca um .mp3, .wav ou .ogg. Para o Discord ouvir, o ffplay.exe precisa sair no CABLE Input (Mixer de volume do Windows).",
+      "fields": [
+        { "key": "file", "label": "Arquivo de som", "type": "file", "filter": "Sons (*.mp3;*.wav;*.ogg)|*.mp3;*.wav;*.ogg", "placeholder": "Clique em Procurar…", "required": true },
+        { "key": "volume", "label": "Volume (0–100)", "type": "number", "default": 80 },
+        { "key": "target", "label": "Onde tocar", "type": "select", "options": ["pc e discord", "só pc", "só discord"], "default": "pc e discord" }
+      ]
+    }
+  }
+}

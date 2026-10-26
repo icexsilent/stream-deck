@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const DIR = path.join(__dirname, 'plugins');
 const ID = /^[a-z0-9-]{1,40}$/;
-const FIELD_TYPES = ['text', 'textarea', 'number', 'select'];
+const FIELD_TYPES = ['text', 'textarea', 'number', 'select', 'file'];
 
 const loaded = new Map(); // id -> { manifest, impl }
 

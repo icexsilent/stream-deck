@@ -316,6 +316,22 @@ function renderInspector() {
         const id = `f-p-${f.key}`;
         const set = (e) => { b.params[f.key] = f.type === 'number' ? Number(e.target.value) : e.target.value; setDirty(); };
         if (f.type === 'select') return select(id, String(b.params[f.key] ?? f.default ?? f.options[0]), Object.fromEntries(f.options.map((o) => [o, o])), set);
+        // "file": the agent opens the Windows picker on this PC, like Procurar… on program buttons.
+        if (f.type === 'file') return h('div', { className: 'row' }, h('input', { type: 'text', id, value: b.params[f.key] ?? '', placeholder: f.placeholder ?? '', oninput: set }),
+          h('button', { className: 'btn', textContent: 'Procurar…', onclick: async (e) => {
+            e.target.disabled = true;
+            try {
+              const r = await fetch(`/api/pick-file?filter=${encodeURIComponent(f.filter ?? '')}`, { method: 'POST' });
+              const body = await r.json();
+              if (!r.ok) throw new Error(body.error);
+              if (body.cancelled) return;
+              change(() => { b.params[f.key] = body.target; if (!b.label || b.label === 'Novo botão' || b.label === action?.label) b.label = body.label; });
+            } catch (err) {
+              toast(`Não abriu a janela de escolher arquivo: ${err.message}`, true);
+            } finally {
+              e.target.disabled = false;
+            }
+          } }));
         if (f.type === 'textarea') return h('textarea', { id, rows: 3, value: b.params[f.key] ?? '', placeholder: f.placeholder ?? '', oninput: set, style: 'padding:var(--s2) var(--s3);background:var(--raised);border:1px solid var(--border);border-radius:var(--r-panel);color:var(--text);font:inherit;resize:vertical' });
         return h('input', { type: f.type === 'number' ? 'number' : 'text', id, value: b.params[f.key] ?? '', placeholder: f.placeholder ?? '', oninput: set });
       };

@@ -45,9 +45,9 @@ $owner = New-Object Windows.Forms.Form -Property @{
 $owner.Show()
 $owner.Activate()
 $dlg = New-Object Windows.Forms.OpenFileDialog -Property @{
-  Title = 'Escolha o programa para o botão'
-  Filter = 'Programas e atalhos (*.exe;*.lnk;*.bat;*.url)|*.exe;*.lnk;*.bat;*.url|Todos os arquivos (*.*)|*.*'
-  InitialDirectory = [Environment]::GetFolderPath('ProgramFiles')
+  Title = $env:SD_TITLE
+  Filter = $env:SD_FILTER
+  InitialDirectory = [Environment]::GetFolderPath($env:SD_DIR)
   DereferenceLinks = $false
 }
 if ($dlg.ShowDialog($owner) -ne 'OK') { exit 0 }
@@ -57,28 +57,50 @@ if ($file -like '*.exe') {
   $desc = (Get-Item -LiteralPath $file).VersionInfo.FileDescription
   if ($desc -and $desc.Trim().Length -le 40) { $label = $desc.Trim() }
 }
-$icon = $true
-try { [ShellIcon]::Save($file, $env:SD_ICON_OUT) } catch {
-  try { [Drawing.Icon]::ExtractAssociatedIcon($file).ToBitmap().Save($env:SD_ICON_OUT) } catch { $icon = $false }
+$icon = [bool]$env:SD_ICON_OUT
+if ($icon) {
+  try { [ShellIcon]::Save($file, $env:SD_ICON_OUT) } catch {
+    try { [Drawing.Icon]::ExtractAssociatedIcon($file).ToBitmap().Save($env:SD_ICON_OUT) } catch { $icon = $false }
+  }
 }
 @{ target = $file; label = $label; icon = $icon } | ConvertTo-Json -Compress
 `;
 
 let busy = false;
 
-/** Returns { target, label, icon } or null when the user cancels. */
-async function pickApp() {
-  if (busy) throw new Error('a janela de escolher programa já está aberta no PC');
+/** Opens the dialog; returns { target, label, icon } or null when the user cancels. */
+async function pick(env) {
+  if (busy) throw new Error('a janela de escolher arquivo já está aberta no PC');
   busy = true;
-  fs.mkdirSync(ICONS, { recursive: true });
-  const tmp = path.join(ICONS, `tmp-${crypto.randomBytes(4).toString('hex')}.png`);
   try {
     const stdout = await new Promise((resolve, reject) =>
       execFile('powershell', ['-NoProfile', '-STA', '-EncodedCommand', Buffer.from(PS, 'utf16le').toString('base64')],
-        { env: { ...process.env, SD_ICON_OUT: tmp }, windowsHide: true, timeout: 10 * 60_000 },
+        { env: { ...process.env, ...env }, windowsHide: true, timeout: 10 * 60_000 },
         (err, out, errOut) => (err ? reject(new Error(errOut.trim() || err.message)) : resolve(out))));
-    if (!stdout.trim()) return null;
-    const r = JSON.parse(stdout.trim());
+    return stdout.trim() ? JSON.parse(stdout.trim()) : null;
+  } finally {
+    busy = false;
+  }
+}
+
+/** Any file for a plugin field; "filter" uses the Windows dialog syntax, e.g. "Sons (*.mp3)|*.mp3". */
+async function pickFile(filter) {
+  const r = await pick({ SD_TITLE: 'Escolha o arquivo para o botão', SD_FILTER: filter || 'Todos os arquivos (*.*)|*.*', SD_DIR: 'MyMusic', SD_ICON_OUT: '' });
+  return r && { target: r.target, label: r.label.slice(0, 40) };
+}
+
+/** Returns { target, label, icon } or null when the user cancels. */
+async function pickApp() {
+  fs.mkdirSync(ICONS, { recursive: true });
+  const tmp = path.join(ICONS, `tmp-${crypto.randomBytes(4).toString('hex')}.png`);
+  try {
+    const r = await pick({
+      SD_TITLE: 'Escolha o programa para o botão',
+      SD_FILTER: 'Programas e atalhos (*.exe;*.lnk;*.bat;*.url)|*.exe;*.lnk;*.bat;*.url|Todos os arquivos (*.*)|*.*',
+      SD_DIR: 'ProgramFiles',
+      SD_ICON_OUT: tmp,
+    });
+    if (!r) return null;
     let icon;
     if (r.icon && fs.existsSync(tmp)) {
       // Same program -> same file name, so re-adding an app doesn't pile up copies of its icon.
@@ -87,9 +109,8 @@ async function pickApp() {
     }
     return { target: r.target, label: r.label.slice(0, 40), icon };
   } finally {
-    busy = false;
     fs.rmSync(tmp, { force: true });
   }
 }
 
-module.exports = { pickApp };
+module.exports = { pickApp, pickFile };

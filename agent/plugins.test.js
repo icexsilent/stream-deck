@@ -7,7 +7,15 @@ const { validate } = require('./config');
 test('carrega os plugins que vêm junto', () => {
   assert.deepStrictEqual(plugins.loadAll(), []);
   const ids = plugins.list().map((p) => p.id).sort();
-  assert.deepStrictEqual(ids, ['texto', 'webhook']);
+  assert.deepStrictEqual(ids, ['audio', 'texto', 'webhook']);
+});
+
+test('áudio recusa arquivo inexistente, formato errado e volume fora da faixa', async () => {
+  const { check } = require('./plugins/audio');
+  assert.throws(() => check('C:\\nao\\existe.mp3', 80), /não encontrado/);
+  assert.throws(() => check(__filename, 80), /formato/);
+  assert.throws(() => check('x.wav', 150), /volume/);
+  await assert.rejects(plugins.run({ plugin: 'audio', action: 'play', params: {} }, {}), /Arquivo de som/);
 });
 
 test('webhook chama a URL com o corpo e reclama de erro HTTP', async () => {

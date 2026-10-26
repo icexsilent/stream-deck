@@ -39,7 +39,7 @@ Uma pasta com dois arquivos. O nome da pasta é o `id`.
 }
 ```
 
-- **Tipos de campo:** `text`, `textarea`, `number`, `select` (com `options`).
+- **Tipos de campo:** `text`, `textarea`, `number`, `select` (com `options`), `file` (botão Procurar… no editor; `filter` opcional no formato do Windows, ex. `"Sons (*.mp3)|*.mp3"`).
 - `required` faz o Stream Deck cobrar o campo. `default` é usado quando o botão não preencheu o campo.
 
 `plugins/ola/index.js`: o que roda quando a tecla é tocada.

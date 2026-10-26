@@ -9,7 +9,7 @@ const { WebSocketServer } = require('ws');
 const config = require('./config');
 const { run } = require('./actions');
 const { scanAll, ICONS } = require('./games');
-const { pickApp } = require('./apps');
+const { pickApp, pickFile } = require('./apps');
 const widgets = require('./widgets');
 const plugins = require('./plugins');
 for (const err of plugins.loadAll()) console.warn(err);
@@ -108,10 +108,10 @@ const server = http.createServer(async (req, res) => {
     const [ip] = lanIps();
     return res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(ip ? await QRCode.toString(pairUrl(ip), { type: 'svg', margin: 1 }) : '');
   }
-  if (pathname === '/api/pick-app' && req.method === 'POST') {
+  if ((pathname === '/api/pick-app' || pathname === '/api/pick-file') && req.method === 'POST') {
     const json = (code, body) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify(body));
     try {
-      const app = await pickApp();
+      const app = pathname === '/api/pick-app' ? await pickApp() : await pickFile(url.searchParams.get('filter'));
       return json(200, app ?? { cancelled: true });
     } catch (e) {
       return json(500, { error: e.message });
