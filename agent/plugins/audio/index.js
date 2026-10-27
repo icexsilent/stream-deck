@@ -1,8 +1,18 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, execFile } = require('node:child_process');
 
 const EXT = ['.mp3', '.wav', '.ogg'];
+
+// Without VB-Cable the Discord copy would land on the same speakers, so every sound would play twice.
+// Checked in the background (the query takes ~1 s) and refreshed every 5 min, so installing or removing the cable is picked up.
+let hasCable = false;
+function checkCable() {
+  execFile('powershell', ['-NoProfile', '-Command', "@(Get-CimInstance Win32_SoundDevice | Where-Object Name -match 'VB-Audio').Count"],
+    { windowsHide: true, timeout: 10000 }, (err, out) => { if (!err) hasCable = Number(out.trim()) > 0; });
+}
+checkCable();
+setInterval(checkCable, 5 * 60_000).unref();
 
 // Local copy: WPF MediaPlayer plays on the default device; the path goes in an env var so quotes in it can't break the script.
 const PS = `Add-Type -AssemblyName PresentationCore
@@ -25,8 +35,9 @@ module.exports = {
       check(file, volume);
       // No "detached": on Windows it starts PowerShell without a console and it quits before playing.
       const opts = { stdio: 'ignore', windowsHide: true };
+      if (target === 'só discord' && !hasCable) throw new Error('o VB-Cable não está instalado, então o Discord não recebe o som. Troque para "só pc".');
       // Discord copy: Windows routes ffplay.exe to "CABLE Input" (set once in the volume mixer), so no device code here.
-      if (target !== 'só pc') {
+      if (target !== 'só pc' && hasCable) {
         spawn('ffplay', ['-nodisp', '-autoexit', '-loglevel', 'quiet', '-volume', String(volume), file], opts).on('error', () => {}).unref();
       }
       if (target !== 'só discord') {

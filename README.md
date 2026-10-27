@@ -225,6 +225,14 @@ Pronto: sua voz e os sons vão juntos para a chamada. O mudo do Discord (6.1) mu
 
 > Se preferir não mexer no microfone, pule o Passo 5 e deixe o Discord no seu microfone normal: aí os sons só tocam para você.
 
+**Sem o VB-Cable:** o plugin percebe sozinho e toca o som só no PC, uma vez. Os sons não chegam ao Discord.
+
+**Para tirar o VB-Cable depois** (desfaça os Passos 5 e 2, nesta ordem):
+
+1. `Win+R` → `mmsys.cpl` → aba **Gravação** → seu microfone → aba **Escutar** → **desmarque** **Escutar este dispositivo** → **OK**. Sem isso, depois de tirar o cabo, você passa a ouvir a própria voz no fone.
+2. No Discord: **Voz e vídeo → Dispositivo de entrada** → volte para o **seu microfone**.
+3. **Configurações → Aplicativos → Aplicativos instalados → VBCABLE, The Virtual Audio Cable → Desinstalar**, e reinicie o PC.
+
 ### 6.3 Mandar mensagem num canal (webhook)
 
 Um botão que posta uma mensagem num canal do Discord, por exemplo "Estou ao vivo!". Precisa ser administrador do servidor (ou ter permissão de Gerenciar webhooks).
